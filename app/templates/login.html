@@ -1,0 +1,20 @@
+{%extends "base.html"%}
+
+
+{% block title %} Login {% endblock %}
+
+{% block content %}
+<form method="POST" action="#">
+<p>Email: </p>
+<p><input type="text" name="Email"></p>
+
+<p>Password: </p>
+<p><input type="password" name="password"></p>
+
+<p><input type="submit" value="submit"></p>
+
+
+<a href="{{url_for('auth_bp.register')}}">Don't have an account?</a>
+
+</form>
+{% endblock %}

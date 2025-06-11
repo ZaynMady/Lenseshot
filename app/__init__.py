@@ -19,6 +19,11 @@ def create_app():
     #app database
     db.init_app(app)
 
+    #registering blueprints
+    from .routes.auth import auth_bp
+
+    app.register_blueprint(auth_bp)
+
     return app
 
 
