@@ -20,8 +20,6 @@ def create_app():
     bcrypt.init_app(app) #Password hashing
     login_manager.init_app(app) #Login manager for user sessions
     db.init_app(app) #Database connection
-
-
  
 
     #registering blueprints
@@ -34,6 +32,3 @@ def create_app():
 
     #returning the app instance
     return app
-
-
-
