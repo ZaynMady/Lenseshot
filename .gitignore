@@ -12,3 +12,8 @@ __pycache__/
 *.sqlite3
 .idea/
 .vscode/
+
+#.docker
+docker/
+
+
