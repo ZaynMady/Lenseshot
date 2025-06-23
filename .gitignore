@@ -1,0 +1,19 @@
+# Ignore Python virtual environments
+venv/
+
+# Ignore compiled Python files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore environment and IDE settings
+.env
+*.env
+*.sqlite3
+.idea/
+.vscode/
+
+#.docker
+docker/
+
+
