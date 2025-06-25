@@ -34,16 +34,20 @@ def create_app():
 
 
 
-    #creating a base route for the application 
-    @app.route('/')
-    def index():
-        verify_jwt_in_request(optional=True)  # Check if JWT is present, but not required
-        user_id = get_jwt_identity()
+    #handling different jwt errors
 
-        if user_id:
-            return redirect(url_for('dashboard_bp.dashboard'))
-        else:
-            return redirect(url_for('auth_bp.login'))
+    @jwt.expired_token_loader
+    def expired_token_callback(jwt_header, jwt_payload):
+        return redirect(url_for('auth_bp.login', message="Your session has expired. Please log in again."))
+    
+    @jwt.invalid_token_loader
+    def invalid_token_callback(jwt_header, jwt_payload):
+        return redirect(url_for('auth_bp.login', message="Invalid token. Please log in again."))
+    
+    @jwt.unauthorized_loader
+    def unauthorized_callback(jwt_header, jwt_payload):
+        return redirect(url_for('auth_bp.login', message="You are not authorized to access this page. Please log in."))
+    
         
     #returning the app instance
     return app
