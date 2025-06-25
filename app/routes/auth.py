@@ -1,10 +1,10 @@
-from flask import Blueprint, render_template, request, session, redirect, url_for
+from flask import Blueprint, render_template, redirect, url_for, jsonify, make_response
 from app.forms import registrationForm, loginForm
 from app.models.userbase import user
 from app.models import db
 from flask_bcrypt import Bcrypt 
 from flask import flash
-from flask_login import login_user, LoginManager, login_required, logout_user
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, set_access_cookies, unset_jwt_cookies
 
 
 #initializing the auth blueprint
@@ -12,13 +12,7 @@ auth_bp = Blueprint("auth_bp", __name__, template_folder="templates", static_fol
 bcrypt = Bcrypt()
 
 #initializing the login manager
-login_manager = LoginManager()
-login_manager.login_view = "auth_bp.login"  # Redirect to login page if not authenticated
-
-@login_manager.user_loader
-def load_user(user_id):
-    # Load the user from the database using the user_id
-    return user.query.get(int(user_id))
+jwt = JWTManager()
 
 
 #login route
@@ -32,8 +26,10 @@ def login():
         #checking if the user exists
         if User and bcrypt.check_password_hash(User.password, form.password.data):
             #if the user exists and the password is correct
-            login_user(User)  # Log the user in
-            return redirect(url_for("dashboard_bp.dashboard"))
+            access_token = create_access_token(identity=str(User.id)) #creating a JWT token for the user
+            response = make_response(redirect(url_for("dashboard_bp.dashboard")))
+            set_access_cookies(response, access_token) #redirecting to the dashboard page
+            return response 
         else:
             #if the user does not exist or the password is incorrect
             form.email.errors.append("Invalid email or password")
@@ -43,10 +39,14 @@ def login():
 
 #logout route
 @auth_bp.route("/logout")
-@login_required 
+@jwt_required()
 def logout():
-    logout_user()
-    return redirect(url_for("auth_bp.login"))
+    #logout the user by removing the JWT token from the response cookie
+    response = make_response(redirect(url_for("auth_bp.login")))
+    unset_jwt_cookies(response)
+    flash("You have been logged out successfully", "success")
+    return response
+
 #register route
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
