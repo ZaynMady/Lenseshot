@@ -11,6 +11,18 @@ services:
     volumes:
       - db_data:/var/lib/mysql
     
+  Jenkins:  
+    image: jenkins/jenkins:lts
+    priviliged: true
+    user: root
+    restart: always
+    ports:
+      - 8080:8080
+      - 50000:50000
+    container_name: jenkins
+    volumes:
+      - /jenkins:/var/jenkins_hom
+    
   web:
     build: .
     container_name: lenseshot
