@@ -1,9 +1,8 @@
 from flask import Flask 
-from .models import db
-from .routes.auth import bcrypt, jwt
-from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+from app.models import db
+from app.routes.auth import bcrypt, jwt
 from flask import redirect, url_for, render_template
-
+from flask_cors import CORS
 
 
 
@@ -23,14 +22,19 @@ def create_app():
     bcrypt.init_app(app) #Password hashing
     jwt.init_app(app) #JWT Authentication
     db.init_app(app) #Database connection
+    CORS(app, 
+    supports_credentials=True,
+    origins=["http://localhost:5173"] ) #Enable CORS for the app
  
 
     #registering blueprints
-    from .routes.auth import auth_bp
-    from .routes.dashboard import dashboard_bp
+    from app.routes.auth import auth_bp
+    from app.routes.dashboard import dashboard_bp
+    from app.routes.user_account import user_account_bp
 
-    app.register_blueprint(auth_bp) #User Authentication routes
+    app.register_blueprint(auth_bp, url_prefix="/api") #User Authentication routes
     app.register_blueprint(dashboard_bp) #Dashboard routes
+    app.register_blueprint(user_account_bp) #User Account routes
 
 
 
@@ -45,8 +49,9 @@ def create_app():
         return redirect(url_for('auth_bp.login', message="Invalid token. Please log in again."))
     
     @jwt.unauthorized_loader
-    def unauthorized_callback(jwt_header, jwt_payload):
-        return redirect(url_for('auth_bp.login', message="You are not authorized to access this page. Please log in."))
+    def unauthorized_callback(error_message):
+        return redirect(url_for('auth_bp.login', message=error_message))
+    
     
         
     #returning the app instance
