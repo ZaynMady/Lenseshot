@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   db: 
     image: mysql:8.0
@@ -10,19 +12,30 @@ services:
       - "3307:3306"
     volumes:
       - db_data:/var/lib/mysql
-    
-  web:
-    build: .
-    container_name: lenseshot
+
+  backend:
+    build: 
+      context: ./backend
+    container_name: lenseshot_backend
     restart: always
     ports: 
       - "5000:5000"
     environment:
       - DATABASE_URL=mysql+pymysql://root:earth616@db:3306/lenseshot
     volumes:
-      - .:/app
+      - ./backend:/app
     depends_on:
       - db
 
+  frontend:
+    build:
+      context: ./frontend
+    container_name: lenseshot_frontend
+    restart: always
+    ports: 
+      - "5173:5173" 
+    depends_on:
+      - backend
+
 volumes:
-    db_data:
+  db_data:
