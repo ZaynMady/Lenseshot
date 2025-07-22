@@ -8,7 +8,11 @@ projects_bp = Blueprint('projects', __name__)
 @projects_bp.route('/projects', methods=['GET'])
 @jwt_required()
 def get_projects():
-    ...
+    #getting the current user
+    current_user = get_jwt_identity()
+    user_projects_path = os.path.join('users', str(current_user), 'projects')
+    #if the user has no projects
+
 
 def create_project():
     current_user = get_jwt_identity()

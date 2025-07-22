@@ -5,25 +5,7 @@ import ProjectCard from '../components/project_card';
 const Projects = () => {
   const [projects, setProjects] = useState([]);
 
-  useEffect(() => {
-    // Simulated API call
-    setProjects([
-      {
-        id: 1,
-        name: "The Shadows",
-        director: "Zayn Mady",
-        producer: "Nour Khaled",
-        createdAt: "2025-06-01",
-      },
-      {
-        id: 2,
-        name: "Fragments",
-        director: "Layla Hussein",
-        producer: "Zayn Mady",
-        createdAt: "2025-07-03",
-      },
-    ]);
-  }, []);
+  
 
   return (
     <div
