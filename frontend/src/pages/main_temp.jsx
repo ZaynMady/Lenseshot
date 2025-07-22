@@ -8,6 +8,9 @@ export default function Maintemp() {
           <div className="text-xl font-bold tracking-wide">Lenseshot</div>
 
           <div className="space-x-6">
+            <Link to="/" className="hover:text-gray-300">
+              Home
+            </Link>
             <Link to="/projects" className="hover:text-gray-300">
               Projects
             </Link>
