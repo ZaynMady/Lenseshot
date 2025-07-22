@@ -4,7 +4,7 @@ from app.models import db
 from flask_bcrypt import Bcrypt 
 from flask import flash
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, unset_jwt_cookies
-
+import os
 
 #initializing the auth blueprint
 auth_bp = Blueprint("auth_bp", __name__, template_folder="templates", static_folder="static")
@@ -71,6 +71,13 @@ def register():
         )
         db.session.add(User)
         db.session.commit()
+
+        #creating a user folder
+        user_folder = os.path.join("users", str(User.id))
+        os.makedirs(user_folder, exist_ok=True)
+        #if the user folder could not be created, return an error
+        if not user_folder:
+            return jsonify({"message": "User folder could not be created"}), 500
         return jsonify({"message": "User registered successfully", "success": True}), 201
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
