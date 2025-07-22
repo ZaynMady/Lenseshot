@@ -33,8 +33,8 @@ def create_app():
     from app.routes.user_account import user_account_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api") #User Authentication routes
-    app.register_blueprint(dashboard_bp) #Dashboard routes
-    app.register_blueprint(user_account_bp) #User Account routes
+    app.register_blueprint(dashboard_bp, url_prefix="/api") #Dashboard routes
+    app.register_blueprint(user_account_bp, url_prefix="/api") #User Account routes
 
 
 
