@@ -24,7 +24,7 @@ def create_app():
     db.init_app(app) #Database connection
     CORS(app, 
     supports_credentials=True,
-    origins=["http://localhost:5173"] ) #Enable CORS for the app
+    resources={r"/api/*": {"origins": "http://localhost:5173"}}) #Enable CORS for the app
  
 
     #registering blueprints
@@ -41,12 +41,12 @@ def create_app():
     #handling different jwt errors
 
     @jwt.expired_token_loader
-    def expired_token_callback(jwt_header, jwt_payload):
-        return redirect(url_for('auth_bp.login', message="Your session has expired. Please log in again."))
+    def expired_token_callback(error_message):
+        return redirect(url_for('auth_bp.login', message=error_message))
     
     @jwt.invalid_token_loader
-    def invalid_token_callback(jwt_header, jwt_payload):
-        return redirect(url_for('auth_bp.login', message="Invalid token. Please log in again."))
+    def invalid_token_callback(error_message):
+        return redirect(url_for('auth_bp.login', message=error_message))
     
     @jwt.unauthorized_loader
     def unauthorized_callback(error_message):

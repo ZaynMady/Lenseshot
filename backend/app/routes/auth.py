@@ -39,7 +39,7 @@ def login():
         #creating a JWT token for the user
         access_token = create_access_token(identity=str(User.id))
         
-        return jsonify({ "message:": "login successfull", "access_token": access_token, "success": True}), 200
+        return jsonify({ "message": "login successfull", "access_token": access_token, "success": True}), 200
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
 
