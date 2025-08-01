@@ -1,8 +1,12 @@
 // components/ProjectCard.jsx
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const ProjectCard = ({ project }) => {
   return (
+    <Link
+    to={`/projects/${project.id}`} className="no-underline hover:shadow-lg transition-shadow duration-300"
+    >
     <div className="w-64 m-4 shadow-xl rounded-lg overflow-hidden border border-black bg-[#222] text-white font-mono">
       {/* Top Clapper (stripes) */}
       <div className="bg-gradient-to-r from-white to-black flex justify-between items-center px-2 py-1 border-b-2 border-black">
@@ -25,6 +29,7 @@ const ProjectCard = ({ project }) => {
         </div>
       </div>
     </div>
+    </Link>
   );
 };
 
