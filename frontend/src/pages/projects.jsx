@@ -1,50 +1,57 @@
-// pages/Dashboard.jsx
-import React, { useEffect, useState } from 'react';
-import ProjectCard from '../components/project_card';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import ProjectCard from '../components/ProjectCard';
+import CreateProjectModal from '../components/CreateProjectModal';
 
-const Projects = () => {
+const Dashboard = () => {
   const [projects, setProjects] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+
+  const fetchProjects = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/projects", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+        },
+      });
+      setProjects(res.data);
+    } catch (err) {
+      console.error("Error fetching projects:", err);
+    }
+  };
 
   useEffect(() => {
-    // Simulated API call
-    setProjects([
-      {
-        id: 1,
-        name: "The Shadows",
-        director: "Zayn Mady",
-        producer: "Nour Khaled",
-        createdAt: "2025-06-01",
-      },
-      {
-        id: 2,
-        name: "Fragments",
-        director: "Layla Hussein",
-        producer: "Zayn Mady",
-        createdAt: "2025-07-03",
-      },
-    ]);
+    fetchProjects();
   }, []);
 
+  const handleProjectCreated = () => {
+    setShowModal(false);
+    fetchProjects();
+  };
+
   return (
-    <div
-      className="min-h-screen bg-cover bg-center p-8"
-      style={{ backgroundImage: "url('/whiteboard.jpg')" }}
-    >
-      <div className="flex justify-between items-center mb-6">
+    <div className="min-h-screen bg-cover bg-center p-8" style={{ backgroundImage: "url('/whiteboard.jpg')" }}>
+      <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-black drop-shadow-lg">🎬 My Projects</h1>
-        <button className="bg-black text-white px-4 py-2 rounded-lg shadow hover:bg-gray-800 transition">
+        <button
+          onClick={() => setShowModal(true)}
+          className="bg-black text-white px-4 py-2 rounded-lg shadow hover:bg-gray-800 transition"
+        >
           + Create New Project
         </button>
       </div>
 
-      <div className="flex flex-wrap justify-start">
-        {projects.map(project => (
-          <ProjectCard key={project.id} project={project} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        {projects.map((project) => (
+          <ProjectCard key={project.project_id} project={project} />
         ))}
       </div>
+
+      {showModal && (
+        <CreateProjectModal onClose={() => setShowModal(false)} onSuccess={handleProjectCreated} />
+      )}
     </div>
   );
 };
 
-export default Projects;
-
+export default Dashboard;
