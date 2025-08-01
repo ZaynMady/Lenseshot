@@ -5,7 +5,7 @@ import Login from './pages/login.jsx'
 import Register from './pages/register.jsx'
 import Maintemp from './pages/main_temp.jsx'
 import Home from './pages/homepage.jsx'
-import Projects from './pages/projects.jsx'
+import Dashboard from './pages/dashboard.jsx'
 
 function App() {
   return (
@@ -18,7 +18,7 @@ function App() {
 
   <Route element={<Maintemp />}>
   <Route path="/" element={<Home />} />
-  <Route path="/projects" element={<Projects />} />
+  <Route path="/projects" element={<Dashboard />} />
   <Route path="/contacts" element={<div>Contacts Page</div>} />
   <Route path="/account" element={<div>Account Page</div>} />
   </Route>
