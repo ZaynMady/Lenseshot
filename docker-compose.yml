@@ -40,5 +40,17 @@ services:
     depends_on:
       - backend
 
+  scripts: 
+    build:
+      context: ./scripts
+    container_name: lenseshot_scripts
+    restart: "no"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./scripts:/app
+    depends_on:
+      - db
+      - backend
 volumes:
   db_data:

@@ -1,6 +1,29 @@
 import { useState } from "react";
 
 export default function Screenplay() {
+
+  //Create New Screenplay function
+  const create_screenplay = async () => {
+
+    const response = await fetch ("http://localhost:8000/api/create_screenplay", {
+      method: "POST", 
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem('access_token')}`
+      },
+      body: JSON.stringify({
+        "template_name": "american_screenplay.xml",
+        "screenplay_name": "First_Draft",
+        "project_id": localStorage.getItem('current_project_id'),
+      })
+
+  })
+
+  if (response.ok) {
+    const data = await response.json();
+    console.log("Screenplay created successfully:", data);
+  }
+}
   const [activeComponent, setActiveComponent] = useState("action");
   const [openMenu, setOpenMenu] = useState(null);
 
@@ -29,6 +52,11 @@ export default function Screenplay() {
                 {menuItems[menu].map((item) => (
                   <div
                     key={item}
+                    onClick={() => {
+                      if (item === "New") {
+                        create_screenplay();
+                      }
+                    }}
                     className="px-4 py-2 text-sm hover:bg-blue-600 cursor-pointer"
                   >
                     {item}

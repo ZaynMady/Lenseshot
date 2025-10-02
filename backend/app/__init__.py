@@ -24,17 +24,19 @@ def create_app():
     db.init_app(app) #Database connection
     CORS(app, 
     supports_credentials=True,
-    resources={r"/api/*": {"origins": "http://localhost:5173"}}) #Enable CORS for the app
+    resources={r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:8000"]}}) #Enable CORS for the app
  
 
     #registering blueprints
     from app.routes.auth import auth_bp
     from app.routes.projects import projects_bp
     from app.routes.user_account import user_account_bp
+    from app.routes.scripts import scripts_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api") #User Authentication routes
     app.register_blueprint(projects_bp, url_prefix="/api") #Dashboard routes
     app.register_blueprint(user_account_bp, url_prefix="/api") #User Account routes
+    app.register_blueprint(scripts_bp, url_prefix="/api") #Screenplay routes
 
 
 

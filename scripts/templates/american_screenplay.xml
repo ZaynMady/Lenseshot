@@ -49,18 +49,18 @@
   </content>
 
   <smartType>
-    <characters>
+    <characters component="characterName">
       <!-- Populated at runtime -->
     </characters>
-    <locations>
+    <locations component="sceneHeading">
       <!-- Could be used for suggestion dropdowns -->
     </locations>
-    <scenes>
+    <scenes component="sceneHeading">
       <scene>INT</scene>
       <scene>EXT</scene>
       <scene>INT/EXT</scene>
     </scenes>
-    <times>
+    <times component="sceneHeading">
       <time>DAY</time>
       <time>NIGHT</time>
       <time>EVENING</time>

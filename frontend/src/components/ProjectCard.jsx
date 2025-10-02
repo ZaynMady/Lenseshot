@@ -5,7 +5,9 @@ import { Link } from 'react-router-dom';
 const ProjectCard = ({ project }) => {
   return (
     <Link
-    to={`/projects/${project.id}`} className="no-underline hover:shadow-lg transition-shadow duration-300"
+    to={`/projects/${project.project_id}`}
+    onClick={() => localStorage.setItem('current_project_id', project.project_id)}
+     className="no-underline hover:shadow-lg transition-shadow duration-300"
     >
     <div className="w-64 m-4 shadow-xl rounded-lg overflow-hidden border border-black bg-[#222] text-white font-mono">
       {/* Top Clapper (stripes) */}
