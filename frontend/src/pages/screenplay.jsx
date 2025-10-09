@@ -19,7 +19,7 @@ export default function Screenplay() {
   const editorRef = useRef(null);
 
   const menuItems = {
-    File: ["New", "Open", "Save", "Save As", "Export"],
+    File: ["New", "Open", "Save", "delete", "Save As", "Export"],
     Edit: ["Undo", "Redo", "Cut", "Copy", "Paste"],
     Tools: ["Spell Check", "Stats", "Auto-Format"],
   };
@@ -49,6 +49,29 @@ export default function Screenplay() {
       alert("❌ Error saving screenplay.");
     }
   };
+  // 3. delete handler
+
+  const deleteHandler = async () => {
+    try {
+      const response = await fetch("http://localhost:8000/api/delete_screenplay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem('access_token')}`
+       },
+        body: JSON.stringify({
+         project_id: localStorage.getItem("current_project_id"),
+         screenplay_name: localStorage.getItem("current_screenplay_name")
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to delete screenplay");
+      const result = await response.json();
+      alert("✅ Screenplay deleted successfully!");
+      navigate("/projects"); // Redirect to projects page after deletion
+
+    } catch (error) {
+      console.error(error);
+      alert("❌ Error deleting screenplay.");
+    }}  
 
   return (
     <div className="flex flex-col h-full font-mono text-black relative">
@@ -72,7 +95,8 @@ export default function Screenplay() {
                     onClick={() => {
                       if (item === "New") setIsScreenplayModalOpen(true);
                       if (item === "Open") setIsOpenScreenplayModalOpen(true);
-                      if (item === "Save") handleSave(); // ✅ 3. Hook up save
+                      if (item === "Save") handleSave(); 
+                      if (item === "delete") deleteHandler();
                     }}
                     className="px-4 py-2 text-sm hover:bg-blue-600 cursor-pointer"
                   >

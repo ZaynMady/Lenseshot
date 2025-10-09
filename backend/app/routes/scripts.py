@@ -111,3 +111,29 @@ def save_screenplay():
         return jsonify({'msg': 'Screenplay saved successfully'}), 200
     except Exception as e:
         return jsonify({'msg': 'Error saving screenplay', 'error': str(e)}), 500
+
+#route to delete screenplay 
+@scripts_bp.route('/screenplay/delete', methods=['POST', 'OPTIONS', 'GET', 'DELETE'])
+@jwt_required()
+def delete_screenplay():
+    data = request.json
+
+    #getting required elements from data
+    user_id = get_jwt_identity()
+    project_id = data.get('project_id')
+    screenplay_name = data.get('screenplay_name')
+
+    if not all([user_id, project_id, screenplay_name]):
+        return jsonify({'msg': 'Missing required fields'}), 400
+    
+    screenplay_path = os.path.join('users', str(user_id), 'projects', str(project_id), 'scripts', screenplay_name)
+    if not os.path.exists(screenplay_path):
+        return jsonify({'msg': 'Screenplay not found'}), 404
+    try:
+        os.remove(screenplay_path)
+        return jsonify({'msg': 'Screenplay deleted successfully'}), 200
+    except Exception as e:
+        return jsonify({'msg': 'Error deleting screenplay', 'error': str(e)}), 500 
+
+
+

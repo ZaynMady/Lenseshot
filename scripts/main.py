@@ -289,6 +289,37 @@ def create_app():
 
         return jsonify(response.json()), response.status_code      
 
+    @app.route('/api/delete_screenplay', methods=['POST', 'OPTIONS', 'GET'])
+    def delete_screenplay():
+        if request.method == "OPTIONS":
+            return "", 200
+        #getting data from frontend
+        data = request.json 
+
+        #extracting relevant information from data
+        screenplay_name = data.get('screenplay_name')
+        project_id = data.get('project_id')
+
+        if not all ([screenplay_name, project_id]):
+            return jsonify({'msg': "Missing required fields"}), 400
+
+        #sending required headers
+        auth_header = request.headers.get("Authorization", None)
+        if not auth_header:
+            return jsonify({"msg": "Missing Authorization Header"}), 401
+        headers = {"content-type": "application/json"}
+        headers["Authorization"] = auth_header
+
+        #sending a request to the backend to delete the screenplay
+        try: 
+            body = {
+                "screenplay_name": screenplay_name,
+                "project_id": project_id
+            }
+            response = requests.delete(f"{BACKEND_URL}/screenplay/delete", json=body, headers=headers)
+            return jsonify(response.json()), response.status_code
+        except requests.exceptions.RequestException as e:
+            return jsonify({'msg': 'Backend connection failed', 'error': str(e)}), 502
     return app
 
 if __name__ == "__main__":
