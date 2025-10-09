@@ -1,27 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<template id="american_screenplay" version="1.0">
+<template id="arabic_screenplay" version="1.0">
   <style>
-    .american-screenplay {
+    .arabic-screenplay {
       font-family: 'Courier New', Courier, monospace;
       font-size: 12pt;
       margin: 0 auto;
       width: 600px;
+      direction: rtl;
     }
     .scene-heading {
-      text-transform: uppercase;
+      font-weight: bold;
+      text-decoration: underline;
       margin-top: 24px;
       margin-bottom: 12px;
+      text-align: right;
     }
 
     .action {
       width: 80%;
       margin: 0 auto;
-      text-align: left;
+      text-align: right;
+      font-style: italic;
     }
 
     .character {
-      text-transform: uppercase;
+      font-weight: bold;
       width: 30%;
       margin: 0 auto;
       text-align: center;
@@ -30,7 +34,7 @@
     .dialogue {
       width: 50%;
       margin: 0 auto;
-      text-align: left;
+      text-align: right;
     }
 
   </style>

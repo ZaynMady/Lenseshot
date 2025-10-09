@@ -40,14 +40,14 @@ def create_screenplay():
         f.write(content)
         
     return jsonify({'msg': 'Screenplay created successfully', 'path': screenplay_path}), 201
-"""
-@scripts_bp.route('/list', methods=['POST'])
-@jwt_required
+
+@scripts_bp.route('/screenplay/list', methods=['POST', 'OPTIONS', 'GET'])
+@jwt_required()
 def list_screenplays():
     data = request.json
 
     #extracting the necessary fields
-    user_id = data.get("user_id")
+    user_id = get_jwt_identity()
     project_id = data.get("project_id")
 
     #querying the project path looking for all screenplays in that project
@@ -55,20 +55,20 @@ def list_screenplays():
     if not all([user_id, project_id]):
         return jsonify({'msg': 'Missing required fields'}), 400
     
-    project_path = os.path.join('users', str(user_id), 'projects', str(project_id))
-    if not os.path.exists(project_path):
+    path = os.path.join('users', str(user_id), 'projects', str(project_id), 'scripts')
+    if not os.path.exists(path):
         return jsonify({'msg': 'Project not found'}), 404
-    screenplays = [f for f in os.listdir(project_path) if f.endswith('.xml')]
+    screenplays = [f.removesuffix('.xml') for f in os.listdir(path) if f.endswith('.xml')]
     return jsonify({'screenplays': screenplays}), 200
 
 
 # route to open an existing screenplay
-@scripts_bp.route('open', methods=['POST'])
+@scripts_bp.route('/screenplay/open', methods=['POST', 'OPTIONS', 'GET'])
 @jwt_required()
 def open_screenplay():
     #getting metadata from request
     data = request.json
-    user_id = data.get('user_id')
+    user_id = get_jwt_identity()
     project_id = data.get('project_id')
     screenplay_name = data.get('screenplay_name')
 
@@ -77,7 +77,7 @@ def open_screenplay():
     
     #querying the backend microservice to get the screenplay file
 
-    screenplay = os.path.join('users', str(user_id), 'projects', str(project_id), f"{screenplay_name}.xml")
+    screenplay = os.path.join('users', str(user_id), 'projects', str(project_id),'scripts', screenplay_name)
 
     if not screenplay: 
         return jsonify({'msg': 'Screenplay not found'}), 404
@@ -88,4 +88,26 @@ def open_screenplay():
     except Exception as e:
         return jsonify({'msg': 'Error reading screenplay', 'error': str(e)}), 500
     
-"""
+@scripts_bp.route('/screenplay/save', methods=['POST', 'OPTIONS', 'GET'])
+@jwt_required()
+def save_screenplay():
+    data = request.json
+
+    #getting required elements from data
+    user_id = get_jwt_identity()
+    project_id = data.get('project_id')
+    screenplay_name = data.get('screenplay_name')
+    screenplay_content = data.get('content')
+
+    if not all([user_id, project_id, screenplay_name, screenplay_content]):
+        return jsonify({'msg': 'Missing required fields'}), 400
+    
+    screenplay_path = os.path.join('users', str(user_id), 'projects', str(project_id), 'scripts', screenplay_name)
+    if not os.path.exists(screenplay_path):
+        return jsonify({'msg': 'Screenplay not found'}), 404
+    try:
+        with open(screenplay_path, 'w', encoding='utf-8') as f:
+            f.write(screenplay_content)
+        return jsonify({'msg': 'Screenplay saved successfully'}), 200
+    except Exception as e:
+        return jsonify({'msg': 'Error saving screenplay', 'error': str(e)}), 500
