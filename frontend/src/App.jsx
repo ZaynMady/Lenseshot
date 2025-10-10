@@ -8,6 +8,7 @@ import Home from './pages/homepage.jsx'
 import Dashboard from './pages/dashboard.jsx'
 import Projects from './pages/projects.jsx'
 import Screenplay  from './pages/screenplay.jsx';
+import ProjectcontrolPage from './pages/ProjectcontrolPage.jsx';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
   <Route path="/" element={<Home />} />
   <Route path="/projects" element={<Dashboard />} />
   <Route path="/projects/:id" element={<Projects />}>
+    <Route path="edit" element={<ProjectcontrolPage />} />
     <Route path="screenplay" element={<Screenplay />} />
     <Route path="visualization" element={<div>Visualization Page</div>} />
     <Route path="budget" element={<div>Budget Page</div>} />

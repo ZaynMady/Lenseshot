@@ -24,7 +24,7 @@ def create_app():
     db.init_app(app) #Database connection
     CORS(app, 
     supports_credentials=True,
-    resources={r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:8000"]}}) #Enable CORS for the app
+    resources={r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:8000", "http://localhost:7000"]}}) #Enable CORS for the app
  
 
     #registering blueprints

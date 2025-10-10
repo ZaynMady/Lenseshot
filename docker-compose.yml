@@ -52,5 +52,18 @@ services:
     depends_on:
       - db
       - backend
+  
+  projects:
+    build:
+      context: ./projects
+    container_name: lenseshot_projects
+    restart: "no"
+    ports:
+      - "7000:7000"
+    volumes:
+      - ./projects:/app
+    depends_on:
+      - db
+      - backend 
 volumes:
   db_data:

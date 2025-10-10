@@ -13,6 +13,7 @@ export default function Projects() {
         <NavButton to="visualization" label="Visualization" icon="🎨" />
         <NavButton to="budget" label="Budget" icon="💰" />
         <NavButton to="scheduling" label="Scheduling" icon="🕒" />
+        <NavButton to="edit" label="Edit Project" icon="✏️" />
       </aside>
 
       {/* Main content */}
