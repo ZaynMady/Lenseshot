@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<template id="arabic_screenplay" version="1.0">
+  <style>
+    .arabic-screenplay {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12pt;
+      margin: 0 auto;
+      width: 600px;
+      direction: rtl;
+    }
+    .scene-heading {
+      font-weight: bold;
+      text-decoration: underline;
+      margin-top: 24px;
+      margin-bottom: 12px;
+      text-align: right;
+    }
+
+    .action {
+      width: 80%;
+      margin: 0 auto;
+      text-align: right;
+      font-style: italic;
+    }
+
+    .character {
+      font-weight: bold;
+      width: 30%;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .dialogue {
+      width: 50%;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+  </style>
+
+
+  <components>
+    <sceneHeading class="scene-heading"/>
+    <actionBlock class="action"/>
+    <characterName class="character"/>
+    <dialogueBlock class="dialogue"/>
+  </components>
+
+
+  <content>
+    
+  </content>
+
+  <smartType>
+    <characters component="characterName">
+      <!-- Populated at runtime -->
+    </characters>
+    <locations component="sceneHeading">
+      <!-- Could be used for suggestion dropdowns -->
+    </locations>
+    <scenes component="sceneHeading">
+      <scene>INT</scene>
+      <scene>EXT</scene>
+      <scene>INT/EXT</scene>
+    </scenes>
+    <times component="sceneHeading">
+      <time>DAY</time>
+      <time>NIGHT</time>
+      <time>EVENING</time>
+      <time>LATER</time>
+      <time>MIDNIGHT</time>
+    </times>
+  </smartType>
+</template>

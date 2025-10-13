@@ -15,5 +15,9 @@ __pycache__/
 
 #.docker
 docker/
+.docker/
+#test users
+backend/users/
+
 
 

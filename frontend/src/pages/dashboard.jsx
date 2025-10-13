@@ -2,16 +2,23 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import ProjectCard from '../components/ProjectCard';
 import CreateProjectModal from '../components/CreateProjectModal';
+import {createClient} from '@supabase/supabase-js'
+
 
 const Dashboard = () => {
   const [projects, setProjects] = useState([]);
   const [showModal, setShowModal] = useState(false);
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_PROJECT_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
   const fetchProjects = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/projects", {
+      const { data: { session } } = await supabase.auth.getSession()
+      const access_token = session?.access_token
+      const res = await axios.get("http://localhost:7000/api/projects/list", {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+          Authorization: `Bearer ${access_token}`,
         },
       });
       setProjects(res.data);

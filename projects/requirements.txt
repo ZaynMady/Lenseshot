@@ -1,0 +1,11 @@
+requests
+flask
+pyJwt
+Flask-Cors
+boto3==1.40.50
+supabase
+dotenv
+supabase
+flask-sqlalchemy
+sqlalchemy
+psycopg2

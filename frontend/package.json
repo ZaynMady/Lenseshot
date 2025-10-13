@@ -15,7 +15,12 @@
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.3",
     "tailwindcss": "^4.1.11", 
-    "axios": "^1.10.0"
+    "axios": "^1.10.0",
+    "lucide-react": "^0.545.0", 
+    "@supabase/supabase-js": "^2.52.0",
+    "@supabase/auth-ui-react": "^0.4.7",
+    "@supabase/auth-ui-shared": "^0.1.8"
+
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
