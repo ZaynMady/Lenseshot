@@ -1,31 +1,32 @@
 from logging import root
-from flask import Flask, request, jsonify, blueprints
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask import Flask, request, jsonify
 import os
 import requests
 from xml.etree import  ElementTree as ET
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager
+from utilities.auth import get_current_user_id, supabase_jwt_required
+from utilities.storage import create_client, list_files
+from dotenv import load_dotenv
 
 
 
 
 def create_app():
 
-
     app = Flask(__name__)
-    app.config["JWT_SECRET_KEY"] = "super-secret-key"   # 👈 REQUIRED
-    app.config["JWT_TOKEN_LOCATION"] = ["headers"]      # default, but be explicit
-    app.config["JWT_HEADER_TYPE"] = "Bearer"            # so it matches "Authorization: Bearer <token>"
-    JWTManager(app)
+    load_dotenv()
+
+    #loading environmental variables
+    CLOUDFLARE_ACCESS_KEY_ID = os.getenv("CLOUDFLARE_ACCESS_KEY_ID")
+    CLOUDFLARE_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
+    CLOUDFLARE_SECRET_ACCESS_KEY = os.getenv("CLOUDFLARE_SECRET_ACCESS_KEY")
+    CLOUDFLARE_BUCKET_NAME = os.getenv("CLOUDFLARE_BUCKET_NAME")
+    SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+    
     #Enable CORS for the app
     CORS(app, 
     supports_credentials=True,
-    resources={r"/api/*": {"origins": ["http://localhost:5173", 
-                                       "http://localhost:5000"]}}) #Enable CORS for the app
-    
-    # This should point to your backend service in docker-compose
-    BACKEND_URL = "http://backend:5000/api"
+    resources={r"/api/*": {"origins": ["http://localhost:5173"]}}) 
 
     
     def load_tag_map(root : ET.Element):
@@ -65,21 +66,26 @@ def create_app():
 
 
     @app.route('/api/create_screenplay', methods=['POST', 'OPTIONS', "GET"])
+    @supabase_jwt_required
     def create_screenplay():
+        #Handling an Options request 
         if request.method == "OPTIONS":
             return "", 200 
+        
+        #extracting the request body and headers
         data = request.json
         auth_header = request.headers.get("Authorization", None)
 
+        #geting the current user_id
         if not auth_header:
             return jsonify({"msg": "Missing Authorization Header"}), 401
+        token = auth_header.split(" ")[1]
+        current_user = get_current_user_id(SUPABASE_JWT_SECRET, token)[0]
 
-        headers = {"content-type": "application/json"}
-        headers["Authorization"] = auth_header
-
-        template_name = data.get('template_name')       # e.g., "american_screenplay.xml"
-        screenplay_name = data.get('screenplay_name')   # e.g., "MyFirstScript"
-        project_id = data.get('project_id')             # e.g., "123"               # comes from JWT
+        #extracting important information necessary to create a screenplay
+        template_name = data.get('template_name')       
+        screenplay_name = data.get('screenplay_name')   
+        project_id = data.get('project_id')             
 
         if not all([template_name, screenplay_name, project_id]):
             return jsonify({'msg': 'Missing required fields', "response": request.json}), 400
@@ -100,58 +106,56 @@ def create_app():
         except Exception as e:
             return jsonify({'msg': 'Error reading template', 'error': str(e)}), 500
 
-        # Forward to backend microservice
-        payload = {
-            
-            "screenplay_name": screenplay_name,
-            "project_id": project_id,
-            "content": template_content
-        }
+        #creating key_path
+        script_key = f"users/{current_user}/projects/{project_id}/screenplays/{screenplay_name}.lss"
+
 
         try:
-            response = requests.post(f"{BACKEND_URL}/screenplay/create", json=payload, headers=headers)
-        except requests.exceptions.RequestException as e:
-            return jsonify({'msg': 'Backend connection failed', 'error': str(e)}), 502
+            #sending the newly created file to Cloudflare storage
+            r3_client = create_client(CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY)
 
-        return jsonify(response.json()), response.status_code
+            r3_client.put_object(Key=script_key,Bucket= CLOUDFLARE_BUCKET_NAME, Body=template_content)
+
+            return jsonify({"msg" : "Screenplay Created Successfully"}), 200
+             
+        except Exception as e:
+            return jsonify({'msg': 'storage connection failed', 'error': str(e)}), 502
 
     
     @app.route('/api/open_screenplay', methods=['GET', 'POST', 'OPTIONS'])
     def open_screenplay():
         if request.method == "OPTIONS":
             return "", 200
-    
+
+        #getting requested data and headers
         data = request.json
         auth_header = request.headers.get("Authorization", None)
 
+        #getting user ID
         if not auth_header:
             return jsonify({"msg": "Missing Authorization Header"}), 401
 
-        headers = {"content-type": "application/json"}
-        headers["Authorization"] = auth_header
+        token = auth_header.split(" ")[1]
+        current_user = get_current_user_id(SUPABASE_JWT_SECRET, token)[0]
 
-
-        screenplay_name = data.get('screenplay_name')   # e.g., "MyFirstScript"
-        project_id = data.get('project_id')             # e.g., "123"               # comes from JWT
+        #getting screenplay data from request necessary to find the file
+        screenplay_name = data.get('screenplay_name')   
+        project_id = data.get('project_id')             
 
         if not all([screenplay_name, project_id]):
             return jsonify({'msg': 'Missing required fields', "response": request.json}), 400
 
         try:
-            body = {
-
-
-                "project_id": project_id,
-                "screenplay_name": screenplay_name
-            }
-            response = requests.get(f"{BACKEND_URL}/screenplay/open", json=body, headers=headers)
-        except requests.exceptions.RequestException as e:
+            #Screenplay key 
+            script_key = f"users/{current_user}/projects/{project_id}/screenplays/{screenplay_name}"
+            #Storage client connection
+            r3_client = create_client(CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY)
+            response = r3_client.get_object(Key=script_key,Bucket=CLOUDFLARE_BUCKET_NAME )
+        except Exception as e:
             return jsonify({'msg': 'Backend connection failed', 'error': str(e)}), 502
 
-        if response.status_code != 200:
-            return jsonify(response.json()), response.status_code
         
-        SCRIPT = response.json().get('content')
+        SCRIPT = response['Body'].read().decode('utf-8')
         if not SCRIPT:
             return jsonify({'msg': 'Screenplay content not found'}), 404
 
@@ -212,20 +216,28 @@ def create_app():
         project_id = data.get('project_id')
         auth_header = request.headers.get("Authorization", None)
 
-        headers = {"content-type": "application/json"}
-        headers["Authorization"] = auth_header
+        if not auth_header: 
+            return jsonify({'msg': 'Missing Auth Header'}), 405
+        
+        token = auth_header.split(" ")[1]
+        current_user = get_current_user_id(SUPABASE_JWT_SECRET, token)[0]
 
         if not all([project_id]):
             return jsonify({'msg': 'Missing required fields'}), 400
         try:
-            body = {
-                "project_id": project_id
-            }
-            response = requests.get(f"{BACKEND_URL}/screenplay/list",headers=headers ,json=body)
+            screenplays_key = f"users/{current_user}/projects/{project_id}/screenplays"
 
-            return jsonify(response.json()), response.status_code
+            r3_client = create_client(
+                CLOUDFLARE_ACCOUNT_ID,
+                CLOUDFLARE_ACCESS_KEY_ID,
+                CLOUDFLARE_SECRET_ACCESS_KEY
+            )
+            screenplay_list = list_files(r3_client, CLOUDFLARE_BUCKET_NAME, screenplays_key, ".lss")
 
-        except requests.exceptions.RequestException as e:
+            response = jsonify({"screenplays": screenplay_list})
+            return response, 200
+
+        except Exception as e:
             return jsonify({'msg': 'Backend connection failed', 'error': str(e)}), 502
 
     @app.route('/api/save_screenplay', methods=['POST', 'OPTIONS', 'GET'])  
@@ -234,13 +246,15 @@ def create_app():
             return "", 200 
         data = request.json
         auth_header = request.headers.get("Authorization", None)
-
+        
+        #getting user_id
         if not auth_header:
             return jsonify({"msg": "Missing Authorization Header"}), 401
+        
+        token = auth_header.split(" ")[1]
+        current_user = get_current_user_id(SUPABASE_JWT_SECRET, token)[0]
 
-        headers = {"content-type": "application/json"}
-        headers["Authorization"] = auth_header
-
+        #getting important screenplay data
         screenplay_Json = data.get('screenplay')      
         screenplay_name = data.get('screenplay_name')
         project_id = data.get('project_id')
@@ -248,14 +262,14 @@ def create_app():
             return jsonify({'msg': 'Missing required fields', "response": request.json}), 400
 
         #getting the last upated version of the screenplay 
-        response = requests.get(f"{BACKEND_URL}/screenplay/open", json={
-            "screenplay_name": screenplay_name,
-            "project_id": project_id
-        }, headers=headers)
-        if response.status_code != 200:
-            return jsonify(response.json()), response.status_code
+        try:
+            r3_client = create_client(CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY)
+            screenplay_key = f"users/{current_user}/projects/{project_id}/screenplays/{screenplay_name}"
+            r3_response = r3_client.get_object(Key=screenplay_key, Bucket=CLOUDFLARE_BUCKET_NAME) 
+        except Exception as e:
+            return jsonify({"msg" : "Couldn't fetch previous screenplay", "error": str(e)}), 406
         
-        prev_script = response.json().get('content')
+        prev_script = r3_response["Body"].read().decode("utf-8")
         if not prev_script:
             return jsonify({'msg': 'Previous screenplay content not found'}), 404
         
@@ -274,20 +288,12 @@ def create_app():
             return jsonify({'msg': 'Invalid XML format', 'error': str(e)}), 400
         except Exception as e:
             return jsonify({'msg': 'Error processing screenplay', 'error': str(e)}), 500
-
-        # Forward to backend microservice
-        payload = {
-            "content": screenplay_content,
-            "screenplay_name": screenplay_name,
-            "project_id": project_id
-        }
-
         try:
-            response = requests.post(f"{BACKEND_URL}/screenplay/save", json=payload, headers=headers)
-        except requests.exceptions.RequestException as e:
-            return jsonify({'msg': 'Backend connection failed', 'error': str(e)}), 502
+            r3_client.put_object(Key=screenplay_key, Bucket=CLOUDFLARE_BUCKET_NAME, Body=screenplay_content)
+        except Exception as e:
+            return jsonify({'msg': 'Storage_connection failed', 'error': str(e)}), 502
 
-        return jsonify(response.json()), response.status_code      
+        return jsonify({"msg" : "Screenplay Saved Successfully"}), 200     
 
     @app.route('/api/delete_screenplay', methods=['POST', 'OPTIONS', 'GET'])
     def delete_screenplay():
@@ -307,18 +313,17 @@ def create_app():
         auth_header = request.headers.get("Authorization", None)
         if not auth_header:
             return jsonify({"msg": "Missing Authorization Header"}), 401
-        headers = {"content-type": "application/json"}
-        headers["Authorization"] = auth_header
+        
+        token = auth_header.split(" ")[1]
+        current_user = get_current_user_id(SUPABASE_JWT_SECRET, token)[0]
 
         #sending a request to the backend to delete the screenplay
         try: 
-            body = {
-                "screenplay_name": screenplay_name,
-                "project_id": project_id
-            }
-            response = requests.delete(f"{BACKEND_URL}/screenplay/delete", json=body, headers=headers)
-            return jsonify(response.json()), response.status_code
-        except requests.exceptions.RequestException as e:
+            r3_client = create_client(CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY)
+            screenplay_key = f"users/{current_user}/projects/{project_id}/screenplays/{screenplay_name}"
+            r3_client.delete_object(Key=screenplay_key, Bucket=CLOUDFLARE_BUCKET_NAME)
+            return jsonify({"msg": "Screenplay Deleted Successfully"}), 200
+        except Exception as e:
             return jsonify({'msg': 'Backend connection failed', 'error': str(e)}), 502
     return app
 

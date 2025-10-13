@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Plus, Save, Trash2 } from "lucide-react";
 import axios from "axios";
+import {createClient} from '@supabase/supabase-js'
 
 export default function ProjectControlPage({ }) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_PROJECT_URL;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;  
+  const supabase = createClient(supabaseUrl, supabaseKey);
   const [metadata, setMetadata] = useState({});
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -14,8 +18,10 @@ export default function ProjectControlPage({ }) {
   useEffect(() => {
     const fetchMetadata = async () => {
       try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const access_token = session?.access_token
         const res = await fetch(`http://localhost:7000/api/projects/${projectId}/metadata`, {
-          headers: { "Authorization": `Bearer ${localStorage.getItem('access_token')}`, 
+          headers: { "Authorization": `Bearer ${access_token}`, 
          "Content-Type": "application/json" }
         });
         if (!res.ok) throw new Error("Failed to fetch metadata");
@@ -48,9 +54,11 @@ export default function ProjectControlPage({ }) {
   const handleSave = async () => {
     setMessage("");
     try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const access_token = session?.access_token
         const res =  await axios.put(`http://localhost:7000/api/projects/${projectId}/metadata`, { metadata }, {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+              Authorization: `Bearer ${access_token}`,
             },
           });
       setMessage("✅ Project metadata saved successfully!");
@@ -64,10 +72,12 @@ export default function ProjectControlPage({ }) {
   const handleDelete = async () => {
     if (!window.confirm("⚠️ Are you sure you want to delete this project?")) return;
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const access_token = session?.access_token
       const res = await fetch(`http://localhost:7000/api/projects/${projectId}`, {
         method: "DELETE",
         headers: {
-          "Authorization": `Bearer ${localStorage.getItem('access_token')}`,
+          "Authorization": `Bearer ${access_token}`,
           "Content-Type": "application/json"
         }
       });

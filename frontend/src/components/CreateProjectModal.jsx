@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { XCircle, Film, User, AlignLeft, Calendar, Tag } from "lucide-react";
+import {createClient} from '@supabase/supabase-js'
 
 
 const CreateProjectModal = ({ onClose, onSuccess }) => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_PROJECT_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 const [formData, setFormData] = useState({
     title: "",
     producer: "",
@@ -32,6 +36,8 @@ const [formData, setFormData] = useState({
     setError("");
 
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const access_token = session?.access_token
       await axios.post(
         "http://localhost:7000/api/projects/create",
         {
@@ -39,14 +45,14 @@ const [formData, setFormData] = useState({
         },
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+            Authorization: `Bearer ${access_token}`,
           },
         }
       );
       onSuccess?.();
       onClose?.();
     } catch (err) {
-      setError(err.response?.data?.message || "Error creating project.");
+      setError(err.response?.data?.message);
     } finally {
       setLoading(false);
     }

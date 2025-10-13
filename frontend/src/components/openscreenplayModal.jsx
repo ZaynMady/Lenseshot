@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
+import {createClient} from "@supabase/supabase-js"
 
 export default function OpenScreenplayModal({ onOpen, isOpen, onClose }) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_PROJECT_URL;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;  
+  const supabase = createClient(supabaseUrl, supabaseKey);
   const [listOfScripts, setListOfScripts] = useState([]);
   const [selectedScript, setSelectedScript] = useState("");
   const [loading, setLoading] = useState(false);
@@ -15,11 +19,13 @@ export default function OpenScreenplayModal({ onOpen, isOpen, onClose }) {
       setError(null);
 
       try {
+        const {data : {session}} = await supabase.auth.getSession()
+        const access_token = session?.access_token
         const response = await fetch("http://localhost:8000/api/list_screenplays", {
           method: "POST", 
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${localStorage.getItem("access_token")}`,
+            "Authorization": `Bearer ${access_token}`,
           },
           body: JSON.stringify({
             project_id: localStorage.getItem("current_project_id"),
@@ -49,14 +55,16 @@ export default function OpenScreenplayModal({ onOpen, isOpen, onClose }) {
     setLoading(true);
 
     try {
+      const {data : {session}} = await supabase.auth.getSession()
+      const access_token = session?.access_token
       const response = await fetch("http://localhost:8000/api/open_screenplay", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("access_token")}`,
+          "Authorization": `Bearer ${access_token}`,
         },
         body: JSON.stringify({
-          screenplay_name: selectedScript + ".xml",
+          screenplay_name: selectedScript + ".lss",
           project_id: localStorage.getItem("current_project_id"),
         }),
       });
@@ -71,7 +79,7 @@ export default function OpenScreenplayModal({ onOpen, isOpen, onClose }) {
     } finally {
       setLoading(false);
       //adding the screenplay name to local storage
-      localStorage.setItem("current_screenplay_name", selectedScript + ".xml");
+      localStorage.setItem("current_screenplay_name", selectedScript + ".lss");
     }
   };
 

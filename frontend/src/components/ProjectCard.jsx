@@ -26,7 +26,11 @@ export default function ProjectCard({ project }) {
 
       <Link
         to={`/projects/${project.project_id}`}
-        onClick={() => localStorage.setItem("current_project_id", project.project_id)}
+        onClick={() => {
+          localStorage.setItem("current_project_id", project.project_id);
+          localStorage.setItem("current_project_title", project.title);
+        }}
+
         className="no-underline hover:shadow-lg transition-shadow duration-300 block"
       >
         {/* Top Clapper */}

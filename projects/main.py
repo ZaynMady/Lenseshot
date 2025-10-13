@@ -1,28 +1,51 @@
 from flask import Flask 
 from flask_cors import CORS
-from flask import jsonify, request
-import requests
+from flask import jsonify, request, json
+from utilities.auth import supabase_jwt_required, get_current_user_id
+from utilities.storage import create_client, list_files
+import os
+from dotenv import load_dotenv
+from models import db, Project
+
+
+
 
 def create_app():
+    load_dotenv()
     app = Flask(__name__)
-    app.config["JWT_SECRET_KEY"] = "super-secret-key"   # 👈 REQUIRED
-    app.config["JWT_TOKEN_LOCATION"] = ["headers"]      # default, but be explicit
-    app.config["JWT_HEADER_TYPE"] = "Bearer"            # so it matches "Authorization: Bearer <token>"
+
+    #loading environment variables
+    CLOUDFLARE_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
+    CLOUDFLARE_ACCESS_KEY_ID = os.getenv("CLOUDFLARE_ACCESS_KEY_ID")
+    CLOUDFLARE_SECRET_ACCESS_KEY = os.getenv("CLOUDFLARE_SECRET_ACCESS_KEY")
+    CLOUDFLARE_BUCKET_NAME = os.getenv("CLOUDFLARE_BUCKET_NAME")
+
+    SUPABASE_SECRET_KEY = os.getenv("SUPABASE_JWT_SECRET")
+
+    DATABASE_URI = os.getenv("DATABASE_URL")
+
+    #loading configuration
+    app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URI
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+    #setting up database
+    db.init_app(app)
+    
     #Enable CORS for the app
     CORS(app, 
     supports_credentials=True,
     resources={r"/api/*": {"origins": ["http://localhost:5173", 
                                         "http://localhost:5000"]}}) #Enable CORS for the app
 
-    # This should point to your backend service in docker-compose
-    BACKEND_URL = "http://backend:5000/api"
 
     #Basic CRUD
 
     @app.route(f'/api/projects/create', methods=['POST', 'OPTIONS'])
+    @supabase_jwt_required
     def create_project():
         if request.method == 'OPTIONS':
             return "", 200
+        
         #getting response from fontend
         response = request.json
 
@@ -37,98 +60,237 @@ def create_app():
         if not project_title:
             return jsonify({"message": "Project title is required in metadata"}), 400
         
-        #generating headers
-        auth_header = request.headers.get('Authorization')
-        if not auth_header:
-            return jsonify({"message": "Authorization header is missing"}), 401
+        #getting the user id from the token 
+        auth_header = request.headers.get('Authorization', None)
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return jsonify({"message": "Missing or invalid Authorization header"}), 401
 
-        headers = {'Content-Type': 'application/json'}
-        headers['Authorization'] = auth_header
+        token = auth_header.split(" ")[1]
+        current_user = get_current_user_id(SUPABASE_SECRET_KEY, token)[0]
 
-        payload = {
-            'metadata': project_metadata,
-            'project_title': project_title
-        }
+        #checking if project already exists
+        existing = Project.query.filter_by(owner=current_user, name=project_title).first()
+        if existing:
+            return jsonify({"message": "Project with this name already exists"}), 400
 
-        #send a post request to the backend to create a new project
-        backend_response = requests.post(f'{BACKEND_URL}/create_project', json=payload, headers=headers)
-        if backend_response.status_code == 201:
-            return jsonify(backend_response.json()), 201
-        else:
-            return jsonify({"message": "Failed to create project", "details": backend_response.text}), backend_response.status_code
+        #Saving Project to database
+        try:
+            project = Project(owner=current_user, name=project_title)   
+            db.session.add(project)        
+            db.session.commit()
+        except Exception as e:
+            return jsonify({"message": f"Failed to save project to database: {str(e)}"}), 500
 
-    @app.route(f'/api/projects/<int:projectid>/metadata', methods=['OPTIONS', 'GET'])
+        project_id = project.id
+
+        #creating a connection to cloud storage
+        try:
+            storage_client = create_client(CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY)
+            bucket_name = os.getenv("CLOUDFLARE_BUCKET_NAME")
+        except Exception as e:
+            return jsonify({"message": f"Failed to connect to storage: {str(e)}"}), 500
+
+        #creating a filepath for the new project
+        project_path = f'users/{current_user}/projects/{project_id}'
+
+        try:
+            #uploading the metadata to the storage bucket
+            storage_client.put_object(
+                Bucket=bucket_name,
+                Key=f'{project_path}/metadata.json',
+                Body=json.dumps(project_metadata),
+                ContentType='application/json'
+            )
+            return jsonify({"message": "Project created successfully", "project_id": project_id}), 201
+        except Exception as e:
+            return jsonify({"message": f"Failed to create project: {str(e)}"}), 500
+
+    @app.route(f'/api/projects/<uuid:projectid>/metadata', methods=['OPTIONS', 'GET'])
+    @supabase_jwt_required
     def metadata_project(projectid):
         if request.method == 'OPTIONS':
             return "", 200
 
         if request.method == 'GET':
-            #generating headers
-            auth_header = request.headers.get('Authorization')
-            if not auth_header:
-                return jsonify({"message": "Authorization header is missing"}), 401
-            headers = {'Content-Type': 'application/json'}
-            headers['Authorization'] = auth_header
+            #getting the user id from the token
+        #getting the user id from the token 
+            auth_header = request.headers.get('Authorization', None)
+            if not auth_header or not auth_header.startswith("Bearer "):
+                return jsonify({"message": "Missing or invalid Authorization header"}), 401
 
-            body = {
-                'project_id': projectid
-            }
+            token = auth_header.split(" ")[1] 
+            current_user = get_current_user_id(SUPABASE_SECRET_KEY, token)[0]
 
-            #send a get request to the backend to fetch project details
-            backend_response = requests.post(f'{BACKEND_URL}/project_details/{int(projectid)}', headers=headers, json=body)
-            if backend_response.status_code == 200:
-                return jsonify(backend_response.json()), 200
-            else:
-                return jsonify({"message": "Failed to fetch project details", "details": backend_response.text}), backend_response.status_code
-    @app.route(f'/api/projects/<int:projectid>', methods=['DELETE'])
+            #checking if project exists
+            project = Project.query.filter_by(id=projectid, owner=current_user).first()
+            if not project:
+                return jsonify({"message": "Project not found"}), 404
+
+            #creating a connection to cloud storage
+            try:
+                storage_client = create_client(CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY)
+                bucket_name = os.getenv("CLOUDFLARE_BUCKET_NAME")
+            except Exception as e:
+                return jsonify({"message": f"Failed to connect to storage: {str(e)}"}), 500
+
+            #creating a filepath for the new project
+            project_path = f'users/{current_user}/projects/{projectid}'
+            metadata_file_path = f'{project_path}/metadata.json'
+
+            try:
+                #downloading the metadata from the storage bucket
+                key = metadata_file_path
+                response = storage_client.get_object(Bucket=bucket_name, Key=key)
+                metadata_content = response['Body'].read().decode('utf-8')
+                data = json.loads(metadata_content)
+                return jsonify(data), 200
+            
+            except Exception as e:
+                return jsonify({"message": f"Failed to retrieve metadata: {str(e)}"}), 500
+            
+    @app.route(f'/api/projects/<uuid:projectid>', methods=['DELETE'])
+    @supabase_jwt_required
     def delete_project(projectid):
-        #generating headers
-        auth_header = request.headers.get('Authorization')
-        if not auth_header:
-            return jsonify({"message": "Authorization header is missing"}), 401
-        headers = {'Content-Type': 'application/json'}
-        headers['Authorization'] = auth_header
+        #getting the user id from the token 
+        auth_header = request.headers.get('Authorization', None)
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return jsonify({"message": "Missing or invalid Authorization header"}), 401
 
-        #send a delete request to the backend to delete the project
-        backend_response = requests.delete(f'{BACKEND_URL}/delete_project/{int(projectid)}', headers=headers)
-        if backend_response.status_code == 200:
-            return jsonify(backend_response.json()), 200
-        else:
-            return jsonify({"message": "Failed to delete project", "details": backend_response.text}), backend_response.status_code
+        token = auth_header.split(" ")[1] 
+        current_user = get_current_user_id(SUPABASE_SECRET_KEY, token)[0]
 
-    @app.route(f'/api/projects/<int:projectid>/metadata', methods=['OPTIONS', 'PUT'])
+        #checking if project exists
+        project = Project.query.filter_by(id=projectid, owner=current_user).first()
+        if not project:
+            return jsonify({"message": "Project not found"}), 404
+
+        #creating a connection to cloud storage
+        try:
+            storage_client = create_client(CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY)
+            bucket_name = os.getenv("CLOUDFLARE_BUCKET_NAME")
+        except Exception as e:
+            return jsonify({"message": f"Failed to connect to storage: {str(e)}"}), 500
+
+        #creating a filepath for the new project
+        project_path = f'users/{current_user}/projects/{projectid}'
+
+        try:
+            #deleting all files in the project directory
+            objects_to_delete = list_files(storage_client, bucket_name, f'{project_path}/')
+            if objects_to_delete:
+                delete_objects = [{'Key': obj} for obj in objects_to_delete]
+                storage_client.delete_objects(Bucket=bucket_name, Delete={'Objects': delete_objects})
+
+            #deleting the project from the database
+            db.session.delete(project)
+            db.session.commit()
+
+            return jsonify({"message": "Project deleted successfully"}), 200
+        except Exception as e:
+            return jsonify({"message": f"Failed to delete project: {str(e)}"}), 500
+
+    @app.route(f'/api/projects/<uuid:projectid>/metadata', methods=['OPTIONS', 'PUT'])
+    @supabase_jwt_required
     def update_metadata(projectid):
         if request.method == 'OPTIONS':
             return "", 200
 
         if request.method == 'PUT':
-            #generating headers
-            auth_header = request.headers.get('Authorization')
-            if not auth_header:
-                return jsonify({"message": "Authorization header is missing"}), 401
-            headers = {'Content-Type': 'application/json'}
-            headers['Authorization'] = auth_header
+            #getting the user id from the token 
+            auth_header = request.headers.get('Authorization', None)
+            if not auth_header or not auth_header.startswith("Bearer "):
+                return jsonify({"message": "Missing or invalid Authorization header"}), 401
 
-            response = request.json
-            project_metadata = response.get('metadata', {})
-            
-            if not project_metadata:
+            token = auth_header.split(" ")[1] 
+            current_user = get_current_user_id(SUPABASE_SECRET_KEY, token)[0]
+
+            #checking if project exists
+            project = Project.query.filter_by(id=projectid, owner=current_user).first()
+            if not project:
+                return jsonify({"message": "Project not found"}), 404
+
+            new_metadata = request.json.get('metadata', {})
+            if not new_metadata:
                 return jsonify({"message": "Metadata is required"}), 400
 
-            body = {
-                'metadata': project_metadata
-            }
+            #creating a connection to cloud storage
+            try:
+                storage_client = create_client(CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY)
+                bucket_name = os.getenv("CLOUDFLARE_BUCKET_NAME")
+            except Exception as e:
+                return jsonify({"message": f"Failed to connect to storage: {str(e)}"}), 500
 
-            #send a put request to the backend to update project metadata
-            backend_response = requests.put(f'{BACKEND_URL}/update_project/{int(projectid)}', headers=headers, json=body)
-            if backend_response.status_code == 200:
-                return jsonify(backend_response.json()), 200
-            else:
-                return jsonify({"message": "Failed to update project metadata", "details": backend_response.text}), backend_response.status_code
+            #creating a filepath for the new project
+            project_path = f'users/{current_user}/projects/{projectid}'
+            metadata_file_path = f'{project_path}/metadata.json'
+
+            try:
+                #downloading the existing metadata from the storage bucket
+                key = metadata_file_path
+                response = storage_client.get_object(Bucket=bucket_name, Key=key)
+                metadata_content = response['Body'].read().decode('utf-8')
+                existing_metadata = json.loads(metadata_content)
+
+                #updating the metadata
+                existing_metadata.update(new_metadata)
+
+                #uploading the updated metadata back to the storage bucket
+                storage_client.put_object(
+                    Bucket=bucket_name,
+                    Key=metadata_file_path,
+                    Body= json.dumps(existing_metadata),
+                    ContentType='application/json'
+                )
+                return jsonify({"message": "Metadata updated successfully"}), 200
+
+            except Exception as e:
+                return jsonify({"message": f"Failed to update metadata: {str(e)}"}), 500
+    
+    @app.route('/api/projects/list', methods=['GET', 'OPTIONS'])
+    @supabase_jwt_required
+    def list_projects():
+        if request.method == 'OPTIONS':
+            return "", 200
+
+        if request.method == 'GET':
+            #getting the user id from the token 
+            auth_header = request.headers.get('Authorization', None)
+            if not auth_header or not auth_header.startswith("Bearer "):
+                return jsonify({"message": "Missing or invalid Authorization header"}), 401
+
+            token = auth_header.split(" ")[1] 
+            current_user = get_current_user_id(SUPABASE_SECRET_KEY, token)[0]
+
+            try:
+                projects = Project.query.filter_by(owner=current_user).all()
+
+                if projects: 
+                    storage_client = create_client(CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY)
+                    bucket_name = CLOUDFLARE_BUCKET_NAME
+
+                    #creating a list of jsons for metadata of each project
+                    metadata_list = []
+                    for project in projects:
+                        project_path = f'users/{current_user}/projects/{project.id}'
+                        metadata_file_path = f'{project_path}/metadata.json'
+                        try:
+                            response = storage_client.get_object(Bucket=bucket_name, Key=metadata_file_path)
+                            metadata_content = response['Body'].read().decode('utf-8')
+                            metadata = json.loads(metadata_content)
+                            metadata["project_id"] = project.id
+                            metadata_list.append(metadata)
+                        except Exception as e:
+                            return jsonify({"msg": "issue with storage cloudflare", "error" : str(e)}), 890
+                    return jsonify(metadata_list), 201
+                    
+                        
+                    
+            except Exception as e:
+                return jsonify({"message": f"Failed to retrieve projects: {str(e)}"}), 500
+    
+    
     return app
-
-
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(host='0.0.0.0', port=7000)
+    app.run(host='0.0.0.0', port=7000, debug=True)

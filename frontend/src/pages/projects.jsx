@@ -1,13 +1,13 @@
 import { NavLink, Outlet, useParams } from "react-router-dom";
 
 export default function Projects() {
-  const { id } = useParams();
+  const { title } = localStorage.getItem("current_project_title");
 
   return (
     <div className="flex min-h-screen bg-[#111] text-white font-mono">
       {/* Sidebar */}
       <aside className="w-60 p-4 bg-[#1a1a1a] border-r border-gray-800 flex flex-col space-y-4">
-        <h2 className="text-xl font-bold text-center mb-4">🎬 Project {id}</h2>
+        <h2 className="text-xl font-bold text-center mb-4 text-size:2">🎬 {title} </h2>
 
         <NavButton to="screenplay" label="Screenplay" icon="🎬" />
         <NavButton to="visualization" label="Visualization" icon="🎨" />

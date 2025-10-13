@@ -1,12 +1,16 @@
 import { useState } from "react";
+import { createClient } from "@supabase/supabase-js"
 
 const CreateScreenplayModal = ({isOpen, onClose}) => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_PROJECT_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;  
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const [title, settitle] = useState('');
     const [template, settemplate] = useState('');
     const [loading, setloading] = useState(false);
     const templates = [
-        {value: "american_screenplay.xml", label: "American Screenplay"}, 
-        {value: "arabic_screenplay.xml", label: "Arabic Screenplay"}
+        {value: "american_screenplay.lss", label: "American Screenplay"}, 
+        {value: "arabic_screenplay.lss", label: "Arabic Screenplay"}
     ]
 
     const handleSubmit = async () => {
@@ -16,11 +20,13 @@ const CreateScreenplayModal = ({isOpen, onClose}) => {
     
     setloading(true);
     try {
+      const {data : {session}} = await supabase.auth.getSession()
+      const access_token = session?.access_token
     const response = await fetch("http://localhost:8000/api/create_screenplay", {
         method: "POST", 
         headers: {
             "content-type": "application/json", 
-            "Authorization": `Bearer ${localStorage.getItem('access_token')}`
+            "Authorization": `Bearer ${access_token}`
         },
         body: JSON.stringify({
             "template_name": template, 

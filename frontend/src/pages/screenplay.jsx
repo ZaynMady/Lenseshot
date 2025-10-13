@@ -3,8 +3,12 @@ import CreateScreenplayModal from "../components/CreateScreenplayModal";
 import { useNavigate } from "react-router-dom";
 import ScreenplayEditor from "../components/screenplayeditor";
 import OpenScreenplayModal from "../components/openscreenplayModal";
+import {createClient} from "@supabase/supabase-js"
 
 export default function Screenplay() {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_PROJECT_URL;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;  
+  const supabase = createClient(supabaseUrl, supabaseKey);
   const [activeComponent, setActiveComponent] = useState("action");
   const [openMenu, setOpenMenu] = useState(null);
   const [isScreenplayModalOpen, setIsScreenplayModalOpen] = useState(false);
@@ -30,10 +34,13 @@ export default function Screenplay() {
     const screenplayData = editorRef.current.getScreenplayData(); // from useImperativeHandle
 
     try {
+      const {data : {session}} = await supabase.auth.getSession()
+      const access_token = session?.access_token
+
       const response = await fetch("http://localhost:8000/api/save_screenplay", {
         method: "POST",
         headers: { "Content-Type": "application/json", 
-          "Authorization": `Bearer ${localStorage.getItem('access_token')}`
+          "Authorization": `Bearer ${access_token}`
          },
         body: JSON.stringify({ screenplay: screenplayData
           , project_id: localStorage.getItem("current_project_id")
@@ -53,10 +60,12 @@ export default function Screenplay() {
 
   const deleteHandler = async () => {
     try {
+      const {data : {session}} = await supabase.auth.getSession()
+      const access_token = session?.access_token
       const response = await fetch("http://localhost:8000/api/delete_screenplay", {
         method: "POST",
         headers: { "Content-Type": "application/json",
-        "Authorization": `Bearer ${localStorage.getItem('access_token')}`
+        "Authorization": `Bearer ${access_token}`
        },
         body: JSON.stringify({
          project_id: localStorage.getItem("current_project_id"),

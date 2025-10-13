@@ -1,31 +1,36 @@
 version: '3.8'
 
 services:
-  db: 
-    image: mysql:8.0
-    container_name: mysql_db
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: earth616
-      MYSQL_DATABASE: lenseshot
-    ports:
-      - "3307:3306"
-    volumes:
-      - db_data:/var/lib/mysql
 
-  backend:
-    build: 
-      context: ./backend
-    container_name: lenseshot_backend
-    restart: always
-    ports: 
-      - "5000:5000"
-    environment:
-      - DATABASE_URL=mysql+pymysql://root:earth616@db:3306/lenseshot
+  scripts:
+    build:
+      context: .
+      dockerfile: ./scripts/Dockerfile
+    container_name: lenseshot_scripts
+    ports:
+      - "8000:8000"
     volumes:
-      - ./backend:/app
-    depends_on:
-      - db
+      - ./scripts:/app          # Live updates to your Flask code
+      - ./utilities:/app/utilities  # Live updates to your utilities folder
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+    restart: unless-stopped
+  
+  projects:
+    build:
+      context: .
+      dockerfile: ./projects/Dockerfile
+    container_name: lenseshot_projects
+    ports:
+      - "7000:7000"
+    volumes:
+      - ./projects:/app          # Live updates to your Flask code
+      - ./utilities:/app/utilities  # Live updates to your utilities folder
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+    restart: unless-stopped
 
   frontend:
     build:
@@ -36,34 +41,7 @@ services:
       - ./frontend:/app
       - /app/node_modules
     ports: 
-      - "5173:5173" 
+      - "5173:5173"
     depends_on:
-      - backend
-
-  scripts: 
-    build:
-      context: ./scripts
-    container_name: lenseshot_scripts
-    restart: "no"
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./scripts:/app
-    depends_on:
-      - db
-      - backend
-  
-  projects:
-    build:
-      context: ./projects
-    container_name: lenseshot_projects
-    restart: "no"
-    ports:
-      - "7000:7000"
-    volumes:
-      - ./projects:/app
-    depends_on:
-      - db
-      - backend 
-volumes:
-  db_data:
+      - scripts
+      - projects
