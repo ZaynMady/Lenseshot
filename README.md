@@ -1,98 +1,29 @@
-# Lenseshot Docker Branch
+# Lenseshot
 
-This branch containerizes the Lenseshot Flask application and MySQL database using Docker and Docker Compose. It provides an easy way to run the entire stack locally or in production, ensuring consistent environments and simple setup.
+Lenseshot is a full-film production application that attempts to create a self-contained infrastructure for filmmakers to collaborate, create industry-standard screenplays, work on shotlists, schedules and an array of tools hoping to provide a richer pre-production experience.
+
+#Disclaimer
+The app is still in it's early developmental stages with many features still planning to come. 
 
 ---
 
 ## Features
 
-- **Flask app** runs in its own container
-- **MySQL database** runs in a separate container with persistent storage
-- **Docker Compose** manages multi-container orchestration
-- **Hot reloading** (optional, via Docker volumes) for development
+1. The user can log in and create an account
+2. The user can create projects that only the user can access, and then delete or update their listed projects
+3. The user can write a screenplay in both English and Arabic formats, save it to the cloud, and delete it.
 
----
+## Planned Features
+ ### Screenplays
+ 1. Adding pagination logic
+ 2. Adding export functions to PDF
+ 3. adding scene-heading numbering
 
-## Getting Started
+### Development
 
-### 1. **Clone the Repository**
+ 1. Adding local environments like the database and storage for development
+ 2. adding tests
 
-```sh
-git clone https://github.com/yourusername/lenseshot.git
-cd lenseshot
-git checkout docker
-```
+# Notes
 
-### 2. **Configure Environment (Optional)**
-
-- By default, the database connection is set up for Docker Compose.
-- If you want to override settings, edit `app/config.py` or use environment variables.
-
-### 3. **Build and Start the Stack**
-
-```sh
-docker-compose up --build -d
-```
-
-- This builds the Flask app image and starts both the web and database containers.
-- The Flask app will be available at [http://localhost:5000](http://localhost:5000).
-
-### 4. **Initialize the Database**
-
-Run the following command to create all tables:
-
-```sh
-docker-compose exec web python
-from app import create_app, db
-app = create_app()
-with app.app_context():
-      db.create_all()
-```
-
----
-
-## Development Tips
-
-- **Live code reload:** If you use Docker volumes (see `docker-compose.yml`), code changes on your host are reflected instantly in the container.
-- **Logs:** View logs with `docker-compose logs -f`.
-- **Stop the stack:**  
-  ```sh
-  docker-compose down
-  ```
-
----
-
-## Troubleshooting
-
-- **Port conflicts:** If port 3306 (MySQL) or 5000 (Flask) is in use, change the host port in `docker-compose.yml`.
-- **Database persistence:** Data is stored in a Docker volume (`db_data`) and will persist unless you remove the volume.
-
----
-
-## Useful Commands
-
-- **Rebuild and restart containers:**
-  ```sh
-  docker-compose up --build -d
-  ```
-- **Stop containers:**
-  ```sh
-  docker-compose down
-  ```
-- **View running containers:**
-  ```sh
-  docker-compose ps
-  ```
-- **Access a shell in the web container:**
-  ```sh
-  docker-compose exec web sh
-  ```
-
----
-
-## Notes
-
-- The `.docker` directory is ignored by git as it contains only local Docker cache files.
-- For production, review security settings and environment variables.
-
----
+The application is split into multiple Dockerized microservices orchestrated by a Docker Compose file. It uses Supabase for database and user auth and Cloudflare R3 for storage. The stack also consists of Flask REST API for the backend and React/Vite for the frontend. 
