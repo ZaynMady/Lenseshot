@@ -1,171 +1,186 @@
-import React, { useEffect, useState, useRef, forwardRef, useImperativeHandle } from "react";
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 
-const ScreenplayEditor = forwardRef(({ screenplayJson, ActiveComponent, setActiveComponent }, ref) => {
-  const [lines, setLines] = useState([]);
-  const [activeLine, setActiveLine] = useState(0);
-  const linesRef = useRef([]);
-  const editorRef = useRef(null);
-  const [totalPages, setTotalPages] = useState(0);
-  const [pages, setPages] = useState([[]]);
+const PAGE_HEIGHT = 1120; // A4 height in px
 
+const ScreenplayEditor = forwardRef(
+  ({ screenplayJson, ActiveComponent, setActiveComponent }, ref) => {
+    const [lines, setLines] = useState([]);
+    const [activeLine, setActiveLine] = useState(0);
+    const [breakIndexes, setBreakIndexes] = useState([]);
+    const linesRef = useRef([]);
+    const editorRef = useRef(null);
 
-  // ✅ Expose a getter for parent
-  useImperativeHandle(ref, () => ({
-    getScreenplayData: () => {
-      return linesRef.current.map((line) => ({
-        class: line.class,
-        content: line.content,
-      }));
-    },
-  }));
+    // Expose screenplay data externally
+    useImperativeHandle(ref, () => ({
+      getScreenplayData: () =>
+        linesRef.current.map((line) => ({
+          class: line.class,
+          content: line.content,
+        })),
+    }));
 
-  //pagination logic
-  function paginate(ScriptLines, MaxHeight){
-    //setting localvariables
-    const pages = [];
-    let currentPage = [];
-    let currentHeight = 0;
-    //setting an iterable variable to iterate through pages
-    let i = 0;
-    //iterating through script lines
-    for (const scriptLine of ScriptLines){
-      //calculating script line height
-      const scriptLineHeight = scriptLine.offsetHeight;
-      //if current height is greater than max height
-      if (currentHeight + scriptLineHeight > MaxHeight){
-        pages.push(currentPage);
-        currentPage = [];
-        currentHeight = 0;
-      }
-      currentPage.push(scriptLine);
-      currentHeight += scriptLineHeight;
-    }
-    //adding the last page
-    if(currentPage.length > 0) {
-      pages.push(currentPage);
-    }
-    return pages;
-  }
+    // Initialize lines
+    useEffect(() => {
+      const initial = screenplayJson?.length
+        ? screenplayJson
+        : [{ class: "scene-heading", content: "" }];
+      setLines(initial);
+      linesRef.current = initial;
+    }, [screenplayJson]);
 
-  // ✅ Initialize screenplay lines
-  useEffect(() => {
-    const initial = screenplayJson?.length
-      ? screenplayJson
-      : [{ class: "scene-heading", content: "" }];
+    const focusLine = (index, placeAtEnd = true) => {
+      const editor = editorRef.current;
+      const lineDiv = editor?.querySelector(`[data-line="${index}"]`);
+      if (!lineDiv) return;
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(lineDiv);
+      if (placeAtEnd) range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      lineDiv.focus();
+    };
 
-    setLines(initial);
-    linesRef.current = initial;
-  }, [screenplayJson]);
-
-  const focusLine = (index, placeAtEnd = true) => {
-    const editor = editorRef.current;
-    const lineDiv = editor?.children[index];
-    if (!lineDiv) return;
-
-    lineDiv.focus();
-    const sel = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(lineDiv);
-    if (placeAtEnd) range.collapse(false);
-    sel.removeAllRanges();
-    sel.addRange(range);
-  };
-
-  useEffect(() => {
-    const editor = editorRef.current;
-    const lineEl = editor?.children?.[activeLine];
-    const lineData = linesRef.current[activeLine];
-
-    if (lineEl && lineData) {
-      lineData.class = ActiveComponent;
-      lineEl.className = `${ActiveComponent} bg-yellow-50`;
+    // Highlight current line and set active component
+    useEffect(() => {
+      const editor = editorRef.current;
+      if (!editor) return;
+      const allLines = editor.querySelectorAll("[data-line]");
+      allLines.forEach((el, i) =>
+        el.classList.toggle("bg-yellow-50", i === activeLine)
+      );
       requestAnimationFrame(() => focusLine(activeLine, false));
-    }
-  }, [ActiveComponent]);
+      const current = linesRef.current[activeLine];
+      if (current) setActiveComponent(current.class);
+    }, [activeLine]);
 
-  useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    const linesEls = Array.from(editor.children);
-    linesEls.forEach((el, i) => el.classList.toggle("bg-yellow-50", i === activeLine));
-    requestAnimationFrame(() => focusLine(activeLine, false));
+    // Track text changes
+    const handleInput = (e, index) => {
+      linesRef.current[index].content = e.target.textContent;
+    };
 
-    const current = linesRef.current[activeLine];
-    if (current) setActiveComponent(current.class);
-  }, [activeLine]);
+    // Keyboard logic
+    const handleKeyDown = (e, index) => {
+      const currentLine = linesRef.current[index];
+      const currentText = currentLine.content;
+      setActiveComponent(currentLine.class);
 
-  useEffect(() => {
-    const pages = paginate(linesRef.current, 1120);
-    setPages(pages);
-    setTotalPages(pages.length);
-  }, [lines]);
+      if (e.key === "Enter") {
+        e.preventDefault();
+        let newClass = "action";
+        if (currentLine.class === "character") newClass = "dialogue";
+        if (currentLine.class === "scene-heading") newClass = "action";
+        if (currentLine.class === "dialogue") newClass = "action";
 
+        const newLines = [
+          ...linesRef.current.slice(0, index + 1),
+          { class: newClass, content: "" },
+          ...linesRef.current.slice(index + 1),
+        ];
+        linesRef.current = newLines;
+        setLines(newLines);
+        setActiveLine(index + 1);
+      }
 
-  const handleInput = (e, index) => {
-    linesRef.current[index].content = e.target.textContent;
-  };
+      if (e.key === "Backspace" && currentText === "" && linesRef.current.length > 1) {
+        e.preventDefault();
+        const newLines = [...linesRef.current];
+        newLines.splice(index, 1);
+        linesRef.current = newLines;
+        setLines(newLines);
+        setActiveLine(Math.max(0, index - 1));
+      }
 
-  const handleKeyDown = (e, index) => {
-    const currentLine = linesRef.current[index];
-    const currentText = currentLine.content;
-    setActiveComponent(currentLine.class);
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const order = ["action", "character", "dialogue"];
+        const currentIdx = order.indexOf(currentLine.class);
+        const nextClass = order[(currentIdx + 1) % order.length];
+        linesRef.current[index].class = nextClass;
+        currentLine.class = nextClass;
+        setLines([...linesRef.current]);
+        setActiveComponent(nextClass);
+      }
+    };
 
-    if (e.key === "Enter") {
-      e.preventDefault();
-      let newClass = "action";
-      if (currentLine.class === "character") newClass = "dialogue";
-      if (currentLine.class === "scene-heading") newClass = "action";
-      if (currentLine.class === "dialogue") newClass = "action";
+    // ✅ Detect overflow and calculate where to place visual page breaks
+    useEffect(() => {
+      const editor = editorRef.current;
+      if (!editor) return;
 
-      const newLines = [
-        ...linesRef.current.slice(0, index + 1),
-        { class: newClass, content: "" },
-        ...linesRef.current.slice(index + 1),
-      ];
-      linesRef.current = newLines;
-      setLines(newLines);
-      setActiveLine(index + 1);
-    }
+      const children = Array.from(editor.querySelectorAll("[data-line]"));
+      let height = 0;
+      const newBreakIndexes = [];
 
-    if (e.key === "Backspace" && currentText === "" && linesRef.current.length > 1) {
-      e.preventDefault();
-      const newLines = [...linesRef.current];
-      newLines.splice(index, 1);
-      linesRef.current = newLines;
-      setLines(newLines);
-      setActiveLine(Math.max(0, index - 1));
-    }
+      children.forEach((child, i) => {
+        const lineHeight = child.offsetHeight || 0;
+        height += lineHeight;
 
-    if (e.key === "Tab") {
-      e.preventDefault();
-      const order = ["action", "character", "dialogue", "transition"];
-      const currentIdx = order.indexOf(currentLine.class);
-      const nextClass = order[(currentIdx + 1) % order.length];
-      linesRef.current[index].class = nextClass;
-      currentLine.class = nextClass;
-      setLines([...linesRef.current]);
-      setActiveComponent(nextClass);
-    }
-  };
+        // When overflow occurs, mark this line index for a page break
+        if (height > PAGE_HEIGHT) {
+          newBreakIndexes.push(i);
+          height = lineHeight;
+        }
+      });
 
-  return (
-    <div ref={editorRef} className="mx-auto mt-4 p-4 outline-none">
-      {lines.map((line, index) => (
+      // ✅ Only update if the breaks actually changed
+      const changed =
+        newBreakIndexes.length !== breakIndexes.length ||
+        newBreakIndexes.some((v, i) => v !== breakIndexes[i]);
+
+      if (changed) setBreakIndexes(newBreakIndexes);
+    }, [lines]);
+
+    return (
+      <div className="relative mx-auto mt-4 p-4 bg-gray-100">
         <div
-          key={index}
-          className={`${line.class} ${activeLine === index ? "bg-yellow-50" : ""}`}
-          contentEditable
-          suppressContentEditableWarning
-          onInput={(e) => handleInput(e, index)}
-          onKeyDown={(e) => handleKeyDown(e, index)}
-          onClick={() => setActiveLine(index)}
-          spellCheck={false}
+          ref={editorRef}
+          className="bg-white shadow-md p-10 w-[794px] min-h-screen mx-auto"
         >
-          {line.content}
+          {lines.map((line, index) => (
+            <React.Fragment key={index}>
+              <div
+                data-line={index}
+                className={`${line.class} ${
+                  activeLine === index ? "bg-yellow-50" : ""
+                }`}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={(e) => handleInput(e, index)}
+                onKeyDown={(e) => handleKeyDown(e, index)}
+                onClick={() => setActiveLine(index)}
+                spellCheck={false}
+                style={{
+                  position: "relative",
+                  zIndex: 1,
+                  paddingBottom: "2px",
+                }}
+              >
+                {line.content}
+              </div>
+
+              {/* ✅ Visual non-editable page breaks */}
+              {breakIndexes.includes(index + 1) && (
+                <div
+                  className="page-break border-t-2 border-dashed border-gray-300 my-6 text-center text-gray-400 text-xs select-none pointer-events-none"
+                  key={`break-${index}`}
+                >
+                  Page {breakIndexes.indexOf(index + 1) + 2}
+                </div>
+              )}
+            </React.Fragment>
+          ))}
         </div>
-      ))}
-    </div>
-  );
-});
+      </div>
+    );
+  }
+);
 
 export default ScreenplayEditor;
+
