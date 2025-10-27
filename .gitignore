@@ -19,5 +19,7 @@ docker/
 #test users
 backend/users/
 
+.docker
+
 
 

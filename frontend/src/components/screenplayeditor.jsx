@@ -5,6 +5,9 @@ const ScreenplayEditor = forwardRef(({ screenplayJson, ActiveComponent, setActiv
   const [activeLine, setActiveLine] = useState(0);
   const linesRef = useRef([]);
   const editorRef = useRef(null);
+  const [totalPages, setTotalPages] = useState(0);
+  const [pages, setPages] = useState([[]]);
+
 
   // ✅ Expose a getter for parent
   useImperativeHandle(ref, () => ({
@@ -15,6 +18,34 @@ const ScreenplayEditor = forwardRef(({ screenplayJson, ActiveComponent, setActiv
       }));
     },
   }));
+
+  //pagination logic
+  function paginate(ScriptLines, MaxHeight){
+    //setting localvariables
+    const pages = [];
+    let currentPage = [];
+    let currentHeight = 0;
+    //setting an iterable variable to iterate through pages
+    let i = 0;
+    //iterating through script lines
+    for (const scriptLine of ScriptLines){
+      //calculating script line height
+      const scriptLineHeight = scriptLine.offsetHeight;
+      //if current height is greater than max height
+      if (currentHeight + scriptLineHeight > MaxHeight){
+        pages.push(currentPage);
+        currentPage = [];
+        currentHeight = 0;
+      }
+      currentPage.push(scriptLine);
+      currentHeight += scriptLineHeight;
+    }
+    //adding the last page
+    if(currentPage.length > 0) {
+      pages.push(currentPage);
+    }
+    return pages;
+  }
 
   // ✅ Initialize screenplay lines
   useEffect(() => {
@@ -63,6 +94,13 @@ const ScreenplayEditor = forwardRef(({ screenplayJson, ActiveComponent, setActiv
     if (current) setActiveComponent(current.class);
   }, [activeLine]);
 
+  useEffect(() => {
+    const pages = paginate(linesRef.current, 1120);
+    setPages(pages);
+    setTotalPages(pages.length);
+  }, [lines]);
+
+
   const handleInput = (e, index) => {
     linesRef.current[index].content = e.target.textContent;
   };
@@ -100,7 +138,7 @@ const ScreenplayEditor = forwardRef(({ screenplayJson, ActiveComponent, setActiv
 
     if (e.key === "Tab") {
       e.preventDefault();
-      const order = ["action", "character", "dialogue"];
+      const order = ["action", "character", "dialogue", "transition"];
       const currentIdx = order.indexOf(currentLine.class);
       const nextClass = order[(currentIdx + 1) % order.length];
       linesRef.current[index].class = nextClass;
