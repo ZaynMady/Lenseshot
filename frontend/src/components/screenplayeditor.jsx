@@ -9,7 +9,7 @@ import React, {
 const PAGE_HEIGHT = 1120; // A4 height in px
 
 const ScreenplayEditor = forwardRef(
-  ({ screenplayJson, ActiveComponent, setActiveComponent }, ref) => {
+  ({ screenplayJson, ActiveComponent, setActiveComponent, styles }, ref) => {
     const [lines, setLines] = useState([]);
     const [activeLine, setActiveLine] = useState(0);
     const [breakIndexes, setBreakIndexes] = useState([]);
@@ -23,6 +23,7 @@ const ScreenplayEditor = forwardRef(
           class: line.class,
           content: line.content,
         })),
+      getScreenplayHtml: () => editorRef.current?.innerHTML,
     }));
 
     // Initialize lines
@@ -138,7 +139,9 @@ const ScreenplayEditor = forwardRef(
     }, [lines]);
 
     return (
-      <div className="relative mx-auto mt-4 p-4 bg-gray-100">
+        <div>
+          <style>{styles}</style>
+        <div className="page">
         <div
           ref={editorRef}
           className="bg-white shadow-md p-10 w-[794px] min-h-screen mx-auto"
@@ -177,10 +180,10 @@ const ScreenplayEditor = forwardRef(
             </React.Fragment>
           ))}
         </div>
-      </div>
+        </div>
+        </div>
     );
   }
 );
 
 export default ScreenplayEditor;
-
