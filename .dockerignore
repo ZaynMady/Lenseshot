@@ -22,3 +22,5 @@ Dockerfile
 .dockerignore
 
 node_modules/
+
+.startapp.sh

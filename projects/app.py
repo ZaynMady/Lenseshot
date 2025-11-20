@@ -2,10 +2,11 @@ from flask import Flask
 from flask_cors import CORS
 from flask import jsonify, request, json
 from utilities.auth import supabase_jwt_required, get_current_user_id
-from utilities.storage import create_client, list_files
+from utilities.cloudflareStorage import Cloudflare
 import os
 from dotenv import load_dotenv
 from models import db, Project
+
 
 
 
@@ -37,7 +38,8 @@ def create_app():
     resources={r"/api/*": {"origins": ["http://localhost:5173", 
                                         "http://localhost:5000"]}}) #Enable CORS for the app
 
-
+    #setting up utility objects
+    Storage = Cloudflare(CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY)
     #Basic CRUD
 
     @app.route(f'/api/projects/create', methods=['POST', 'OPTIONS'])
@@ -83,24 +85,17 @@ def create_app():
 
         project_id = project.id
 
-        #creating a connection to cloud storage
-        try:
-            storage_client = create_client(CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY)
-            bucket_name = os.getenv("CLOUDFLARE_BUCKET_NAME")
-        except Exception as e:
-            return jsonify({"message": f"Failed to connect to storage: {str(e)}"}), 500
-
         #creating a filepath for the new project
         project_path = f'users/{current_user}/projects/{project_id}'
 
+        #uploading the metadata to cloud storage
         try:
-            #uploading the metadata to the storage bucket
-            storage_client.put_object(
-                Bucket=bucket_name,
+            Storage.put(
+                Bucket=CLOUDFLARE_BUCKET_NAME,
                 Key=f'{project_path}/metadata.json',
                 Body=json.dumps(project_metadata),
                 ContentType='application/json'
-            )
+                )
             return jsonify({"message": "Project created successfully", "project_id": project_id}), 201
         except Exception as e:
             return jsonify({"message": f"Failed to create project: {str(e)}"}), 500
@@ -112,8 +107,7 @@ def create_app():
             return "", 200
 
         if request.method == 'GET':
-            #getting the user id from the token
-        #getting the user id from the token 
+        #getting the user id from the token
             auth_header = request.headers.get('Authorization', None)
             if not auth_header or not auth_header.startswith("Bearer "):
                 return jsonify({"message": "Missing or invalid Authorization header"}), 401
@@ -126,12 +120,6 @@ def create_app():
             if not project:
                 return jsonify({"message": "Project not found"}), 404
 
-            #creating a connection to cloud storage
-            try:
-                storage_client = create_client(CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY)
-                bucket_name = os.getenv("CLOUDFLARE_BUCKET_NAME")
-            except Exception as e:
-                return jsonify({"message": f"Failed to connect to storage: {str(e)}"}), 500
 
             #creating a filepath for the new project
             project_path = f'users/{current_user}/projects/{projectid}'
@@ -140,7 +128,7 @@ def create_app():
             try:
                 #downloading the metadata from the storage bucket
                 key = metadata_file_path
-                response = storage_client.get_object(Bucket=bucket_name, Key=key)
+                response = Storage.get(bucket=CLOUDFLARE_BUCKET_NAME, key=key)
                 metadata_content = response['Body'].read().decode('utf-8')
                 data = json.loads(metadata_content)
                 return jsonify(data), 200
@@ -164,22 +152,14 @@ def create_app():
         if not project:
             return jsonify({"message": "Project not found"}), 404
 
-        #creating a connection to cloud storage
-        try:
-            storage_client = create_client(CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY)
-            bucket_name = os.getenv("CLOUDFLARE_BUCKET_NAME")
-        except Exception as e:
-            return jsonify({"message": f"Failed to connect to storage: {str(e)}"}), 500
-
         #creating a filepath for the new project
         project_path = f'users/{current_user}/projects/{projectid}'
 
         try:
             #deleting all files in the project directory
-            objects_to_delete = list_files(storage_client, bucket_name, f'{project_path}/')
+            objects_to_delete = Storage.list_files(bucket=CLOUDFLARE_BUCKET_NAME, prefix=f'{project_path}/')
             if objects_to_delete:
-                delete_objects = [{'Key': obj} for obj in objects_to_delete]
-                storage_client.delete_objects(Bucket=bucket_name, Delete={'Objects': delete_objects})
+                Storage.delete_many(bucket=CLOUDFLARE_BUCKET_NAME, keys=objects_to_delete)
 
             #deleting the project from the database
             db.session.delete(project)
@@ -213,12 +193,7 @@ def create_app():
             if not new_metadata:
                 return jsonify({"message": "Metadata is required"}), 400
 
-            #creating a connection to cloud storage
-            try:
-                storage_client = create_client(CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY)
-                bucket_name = os.getenv("CLOUDFLARE_BUCKET_NAME")
-            except Exception as e:
-                return jsonify({"message": f"Failed to connect to storage: {str(e)}"}), 500
+    
 
             #creating a filepath for the new project
             project_path = f'users/{current_user}/projects/{projectid}'
@@ -227,7 +202,7 @@ def create_app():
             try:
                 #downloading the existing metadata from the storage bucket
                 key = metadata_file_path
-                response = storage_client.get_object(Bucket=bucket_name, Key=key)
+                response = Storage.get(bucket=CLOUDFLARE_BUCKET_NAME, Key=key)
                 metadata_content = response['Body'].read().decode('utf-8')
                 existing_metadata = json.loads(metadata_content)
 
@@ -235,11 +210,11 @@ def create_app():
                 existing_metadata.update(new_metadata)
 
                 #uploading the updated metadata back to the storage bucket
-                storage_client.put_object(
-                    Bucket=bucket_name,
-                    Key=metadata_file_path,
-                    Body= json.dumps(existing_metadata),
-                    ContentType='application/json'
+                Storage.put(
+                    bucket=CLOUDFLARE_BUCKET_NAME,
+                    key=metadata_file_path,
+                    body= json.dumps(existing_metadata),
+                    contenttype='application/json'
                 )
                 return jsonify({"message": "Metadata updated successfully"}), 200
 

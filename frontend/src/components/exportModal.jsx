@@ -92,14 +92,11 @@ const handleExport = async () => {
                 </label>
                 <select
                   id="select"
-                  className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full text-shadow-black px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   onChange={(e) => setFileType(e.target.value)}
                 >
                   <option value="">-- Select file type --</option>
-                  <option>JSON</option>
-                  <option>HTML</option>
-                  <option>LSS</option>
-                  <option>PDF</option>
+                  <option className="text-shadow-black">PDF</option>
                 </select>
               </div>
             </div>

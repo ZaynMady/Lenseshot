@@ -6,15 +6,17 @@ import React, {
   useImperativeHandle,
 } from "react";
 
-const PAGE_HEIGHT = 1120; // A4 height in px
+const PAGE_HEIGHT = 700; // A4 height in px
 
 const ScreenplayEditor = forwardRef(
-  ({ screenplayJson, ActiveComponent, setActiveComponent, styles }, ref) => {
+  ({ screenplayJson, ActiveComponent, setActiveComponent, styles, componentRef }, ref) => {
     const [lines, setLines] = useState([]);
     const [activeLine, setActiveLine] = useState(0);
     const [breakIndexes, setBreakIndexes] = useState([]);
     const linesRef = useRef([]);
     const editorRef = useRef(null);
+    const containerRef = useRef(null);
+
 
     // Expose screenplay data externally
     useImperativeHandle(ref, () => ({
@@ -23,17 +25,35 @@ const ScreenplayEditor = forwardRef(
           class: line.class,
           content: line.content,
         })),
-      getScreenplayHtml: () => editorRef.current?.innerHTML,
+      getScreenplayHtml: () => containerRef.current?.innerHTML,
     }));
+
+    //making line class and active component interdependent
+// ✅ Only update line class if user changes ActiveComponent while staying on same line
+      useEffect(() => {
+        const currentLine = linesRef.current[activeLine];
+        if (!currentLine) return;
+
+        // If user selected a new component, apply it to the current line
+        if (currentLine.class !== ActiveComponent) {
+          currentLine.class = ActiveComponent;
+          setLines([...linesRef.current]);
+        }
+      }, [ActiveComponent]);
+
 
     // Initialize lines
     useEffect(() => {
-      const initial = screenplayJson?.length
-        ? screenplayJson
-        : [{ class: "scene-heading", content: "" }];
+      let initial;
+      if (screenplayJson?.length) {
+        initial = screenplayJson;
+      } else {
+        setActiveComponent("scene-heading");
+        initial = [{ class: "scene-heading", content: "" }];
+      }
       setLines(initial);
       linesRef.current = initial;
-    }, [screenplayJson]);
+    }, [screenplayJson, setActiveComponent]);
 
     const focusLine = (index, placeAtEnd = true) => {
       const editor = editorRef.current;
@@ -52,14 +72,27 @@ const ScreenplayEditor = forwardRef(
     useEffect(() => {
       const editor = editorRef.current;
       if (!editor) return;
+
       const allLines = editor.querySelectorAll("[data-line]");
       allLines.forEach((el, i) =>
         el.classList.toggle("bg-yellow-50", i === activeLine)
       );
+
+      const activeLineEl = editor.querySelector(`[data-line="${activeLine}"]`);
+      if (activeLineEl) {
+        // Automatically scroll the active line to the center of the view
+        activeLineEl.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
+
       requestAnimationFrame(() => focusLine(activeLine, false));
+
       const current = linesRef.current[activeLine];
-      if (current) setActiveComponent(current.class);
+      if (current) {
+        // ✅ Active line always sets activeComponent (unless user overrides later)
+        setActiveComponent(current.class);
+      }
     }, [activeLine]);
+
 
     // Track text changes
     const handleInput = (e, index) => {
@@ -70,23 +103,32 @@ const ScreenplayEditor = forwardRef(
     const handleKeyDown = (e, index) => {
       const currentLine = linesRef.current[index];
       const currentText = currentLine.content;
-      setActiveComponent(currentLine.class);
 
       if (e.key === "Enter") {
         e.preventDefault();
-        let newClass = "action";
-        if (currentLine.class === "character") newClass = "dialogue";
-        if (currentLine.class === "scene-heading") newClass = "action";
-        if (currentLine.class === "dialogue") newClass = "action";
-
+        let nextClass = "action"; // Default
+        switch (currentLine.class) {
+          case "scene-heading":
+          case "action":
+          case "setting":
+            nextClass = "action";
+            break;
+          case "character":
+            nextClass = "dialogue";
+            break;
+          case "dialogue":
+            nextClass = "action";
+            break;
+        }
         const newLines = [
           ...linesRef.current.slice(0, index + 1),
-          { class: newClass, content: "" },
+          { class: nextClass, content: "" },
           ...linesRef.current.slice(index + 1),
         ];
         linesRef.current = newLines;
         setLines(newLines);
         setActiveLine(index + 1);
+        setActiveComponent(nextClass);
       }
 
       if (e.key === "Backspace" && currentText === "" && linesRef.current.length > 1) {
@@ -100,7 +142,7 @@ const ScreenplayEditor = forwardRef(
 
       if (e.key === "Tab") {
         e.preventDefault();
-        const order = ["action", "character", "dialogue"];
+        const order = ["action", "character", "dialogue", "transition", "shot", "scene-heading"];
         const currentIdx = order.indexOf(currentLine.class);
         const nextClass = order[(currentIdx + 1) % order.length];
         linesRef.current[index].class = nextClass;
@@ -139,13 +181,22 @@ const ScreenplayEditor = forwardRef(
     }, [lines]);
 
     return (
-        <div>
-          <style>{styles}</style>
-        <div className="page">
+      <>
+        <style>{styles}</style>
+        <div ref={containerRef}>
         <div
           ref={editorRef}
-          className="bg-white shadow-md p-10 w-[794px] min-h-screen mx-auto"
+          className="page"
+          style={{
+            background: "white",
+            width: "794px",
+            minHeight: "1200px",
+            margin: "40px auto",
+            padding: "40px",
+            boxShadow: "0 0 10px rgba(0,0,0,0.1)"
+          }}
         >
+
           {lines.map((line, index) => (
             <React.Fragment key={index}>
               <div
@@ -180,8 +231,9 @@ const ScreenplayEditor = forwardRef(
             </React.Fragment>
           ))}
         </div>
+        
         </div>
-        </div>
+        </>
     );
   }
 );
