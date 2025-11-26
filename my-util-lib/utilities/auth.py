@@ -9,9 +9,16 @@ import os
 
 
 #define get_current_user_id
-def get_current_user_id(SUPABASE_JWT_SECRET, token):
+def get_current_user_id(request, SUPABASE_JWT_SECRET):
 
     try:
+        auth_header = request.headers.get("Authorization", None)
+
+        #getting user ID
+        if not auth_header:
+            return jsonify({"msg": "Missing Authorization Header"}), 401
+
+        token = auth_header.split(" ")[1]
         decoded_token = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"], options={"verify_aud": False})
         user_id = decoded_token.get("sub")  # 'sub' = user_id in Supabase tokens
         return user_id, None, None

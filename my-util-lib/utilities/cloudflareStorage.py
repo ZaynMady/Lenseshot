@@ -1,10 +1,10 @@
 from boto3 import client
-from storagelib import Storage
+from .storagebase import Storage
 
 class Cloudflare(Storage):
 
     #initializes a cloudflare object that connects to the service
-    def __init__(self, CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY):
+    def __init__(self, CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY, CLOUDFLARE_BUCKET_NAME):
         """Return an authenticated boto3 client connected to Cloudflare R2"""
         account_id = CLOUDFLARE_ACCOUNT_ID
         self.client = client(
@@ -13,10 +13,11 @@ class Cloudflare(Storage):
             aws_access_key_id=CLOUDFLARE_ACCESS_KEY_ID,
             aws_secret_access_key=CLOUDFLARE_SECRET_ACCESS_KEY,
         )
+        self.bucket = CLOUDFLARE_BUCKET_NAME
 
-    def put(self, key, bucket, body=None, contenttype=None, **kwargs):
+    def put(self, key, body=None, contenttype=None, **kwargs):
         try:
-            params = {'Key': key, 'Bucket': bucket}
+            params = {'Key': key, 'Bucket': self.bucket}
             #accepting optional parameters
             if body is not None:
                 params['Body'] = body
@@ -29,17 +30,17 @@ class Cloudflare(Storage):
             print(f"Error uploading file: {e}")
             return False
 
-    def get(self, key, bucket):
+    def get(self, key):
         try:
-            response = self.client.get_object(Key=key, Bucket=bucket)
+            response = self.client.get_object(Key=key, Bucket=self.bucket)
             return response
         except Exception as e:
             print(f"Error getting file: {e}")
             return False
     
-    def update(self, key, bucket, body=None, contenttype=None, **kwargs):
+    def update(self, key, body=None, contenttype=None, **kwargs):
         try:
-            params = {'Key': key, 'Bucket': bucket}
+            params = {'Key': key, 'Bucket': self.bucket}
             #accepting optional parameters
             if body is not None:
                 params['Body'] = body
@@ -52,28 +53,28 @@ class Cloudflare(Storage):
             print(f"Error updating file: {e}")
             return False
 
-    def delete(self, key, bucket):
+    def delete(self, key):
         try:
-            self.client.delete_object(Bucket=bucket, Key=key)
+            self.client.delete_object(Bucket=self.bucket, Key=key)
             return True
         except Exception as e:
             print(f"Error deleting file: {e}")
             return False
 
-    def delete_many(self, bucket, keys):
+    def delete_many(self, keys):
         if not keys:
             return True
         try:
             delete_dict = {'Objects': [{'Key': key} for key in keys]}
-            self.client.delete_objects(Bucket=bucket, Delete=delete_dict)
+            self.client.delete_objects(Bucket=self.bucket, Delete=delete_dict)
             return True
         except Exception as e:
             print(f"Error deleting multiple files: {e}")
             return False
     
-    def list_files(s3_client, bucket, prefix, file_extension):
+    def list_files(self, prefix, file_extension=None):
         try:
-            response = s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
+            response = self.client.list_objects_v2(Bucket=self.bucket, Prefix=prefix)
             if 'Contents' in response:
                 if file_extension:
                     files = []

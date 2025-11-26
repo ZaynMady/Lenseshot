@@ -1,28 +1,26 @@
-# Use lightweight Python base
+# Use a specific, lightweight Python version for a smaller image size.
 FROM python:3.13
 
-# Set working directory inside container
+# Set the working directory in the container.
 WORKDIR /app
 
-# Copy only requirements first for caching
-COPY ./projects/requirements.txt /app/requirements.txt
+# --- Install Shared Library ---
+# Copy the shared library from the parent directory and install it.
+# This is done first to leverage caching.
+COPY ./my-util-lib /app/my-util-lib
+RUN pip install --no-cache-dir /app/my-util-lib
 
-# Install dependencies
+# --- Install Service-Specific Dependencies ---
+# Copy only the requirements.txt to leverage Docker's layer caching.
+# The pip install command will only be re-run if requirements.txt changes.
+COPY ./projects/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the main project code
-COPY ./projects /app
+# --- Copy Application Code ---
+# Copy the rest of the application code from the 'projects' directory.
+COPY ./projects .
 
-# Copy utilities if you want to use them in your Flask app
-COPY ./utilities /app/utilities
-
-# Expose Flask port
+# Expose the port the app runs on.
 EXPOSE 7000
 
-# Environment variables for Flask
-ENV FLASK_APP=app.py
-ENV FLASK_RUN_HOST=0.0.0.0
-ENV FLASK_ENV=development  
-
-# Run Flask
-CMD ["flask", "run", "--port=7000"]
+# The command to run the application will be provided by docker-compose.yml
