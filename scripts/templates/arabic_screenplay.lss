@@ -2,7 +2,7 @@
 
 <template id="arabic_screenplay" version="1.0">
   <style>
-    .arabic-screenplay {
+    .page {
       font-family: 'Courier New', Courier, monospace;
       font-size: 12pt;
       margin: 0 auto;

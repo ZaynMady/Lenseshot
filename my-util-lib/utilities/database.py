@@ -1,59 +1,20 @@
-from sqlalchemy import create_engine, Engine, Table
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import SQLAlchemyError
+from abc import ABC, abstractmethod
 
-
-#creating an engine
-def connect_to_database(db_url: str) -> Engine:
-    engine = create_engine(db_url)
-    return engine
-#closing the engine
-def close_db_connection(engine: Engine):
-    engine.dispose()
-    return 200
-
-
-#basic crud operations on the database
-def add_to_db(engine: Engine, table: Table, data) -> int:
-    with engine.connect() as connection: 
-        try:
-            connection.execute(table.insert(), data)
-            connection.commit()
-            return 200 #success
-        except Exception as e:
-            print(f"Error adding to database: {e}")
-            return 500 #error
-def fetch_from_db(engine, table, query):
-    with engine.connect() as connection:
-        try:
-            result = connection.execute(query.select().where(table.c.id == query))
-            return result.fetchall()
-        except Exception as e:
-            print(f"Error fetching from database: {e}")
-            return 500 #error
-def update_db(engine, table, query, data):
-    with engine.connect() as connection:
-        try:
-            connection.execute(query.update().where(table.c.id == query), data)
-            connection.commit()
-            return 200 #success
-        except Exception as e:
-            print(f"Error updating database: {e}")
-            return 500 #error
-def delete_from_db(engine, table, query):
-    with engine.connect() as connection:
-        try:
-            connection.execute(query.delete().where(table.c.id == query))
-            connection.commit()
-            return 200 #success
-        except Exception as e:
-            print(f"Error deleting from database: {e}")
-            return 500 #error
-
-#Function to execute raw sql queries
-def execute_raw_query(engine, raw_query):
-    with engine.connect() as connection:
-        try:
-            result = connection.execute(raw_query)
-            return result.fetchall()
-        except Exception as e:
-            print(f"Error executing raw query: {e}")
-            return 500 #error
+class Database:
+    def __init__(self, database_url):
+        self.__db = SQLAlchemy()
+        self.__engine = create_engine(database_url, pool_pre_ping=True)
+        self._Session = sessionmaker(bind=self.__engine)
+        self._session = self._Session()
+    
+    #initializing flask app with db
+    def app(self, flask_app):
+        self.__db.init_app(flask_app)
+    
+    @property
+    def engine(self):
+        return self.__engine

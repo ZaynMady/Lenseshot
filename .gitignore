@@ -19,5 +19,9 @@ docker/
 #test users
 backend/users/
 
+.docker
+
+startapp.sh
+
 
 

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import ScreenplayEditor from "../components/screenplayeditor";
 import OpenScreenplayModal from "../components/openscreenplayModal";
 import {createClient} from "@supabase/supabase-js"
+import ExportModal from "../components/exportModal"
 
 export default function Screenplay() {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_PROJECT_URL;
@@ -16,6 +17,8 @@ export default function Screenplay() {
   const [components, setComponents] = useState(["A", "C", "D", "S"]);
   const [screenplayJson, setscreenplayJson] = useState("");
   const [styles, setStyles] = useState("");
+  const [exportOpen, setExportOpen] = useState(false)
+  const compontentRef = useRef(null);
 
   const navigate = useNavigate();
 
@@ -83,8 +86,7 @@ export default function Screenplay() {
     }}  
 
   return (
-    <div className="flex flex-col h-full font-mono text-black relative">
-      <style>{styles}</style>
+    <div className="flex flex-col h-screen font-mono text-black relative overflow-hidden">
 
       {/* Toolbar 1: File / Edit / Tools with dropdowns */}
       <div className="flex bg-gray-900 text-white px-4 py-2 space-x-6 border-b border-gray-700 relative z-10">
@@ -92,7 +94,7 @@ export default function Screenplay() {
           <div
             key={menu}
             className="relative"
-            onMouseEnter={() => setOpenMenu(menu)}
+            onClick={() => setOpenMenu(menu)}
             onMouseLeave={() => setOpenMenu(null)}
           >
             <button className="hover:text-blue-400">{menu}</button>
@@ -106,6 +108,7 @@ export default function Screenplay() {
                       if (item === "Open") setIsOpenScreenplayModalOpen(true);
                       if (item === "Save") handleSave(); 
                       if (item === "delete") deleteHandler();
+                      if (item === "Export") setExportOpen(true);
                     }}
                     className="px-4 py-2 text-sm hover:bg-blue-600 cursor-pointer"
                   >
@@ -119,6 +122,11 @@ export default function Screenplay() {
       </div>
 
       {/* Modals */}
+      <ExportModal isOpen={exportOpen}
+       onClose={() => setExportOpen(false)}
+       html={exportOpen ? editorRef.current?.getScreenplayHtml() : ""}
+       style={styles} />
+
       <OpenScreenplayModal
         isOpen={isOpenScreenplayModalOpen}
         onOpen={(data) => {
@@ -136,7 +144,7 @@ export default function Screenplay() {
       />
 
       {/* Toolbar 2: Component Switcher */}
-      <div className="flex bg-gray-800 text-white px-4 py-2 space-x-3 border-b border-gray-600 z-0">
+      <div ref={compontentRef} className="flex bg-gray-800 text-white px-4 py-2 space-x-3 border-b border-gray-600 z-0">
         {components.map((comp) => (
           <button
             key={comp}
@@ -153,12 +161,14 @@ export default function Screenplay() {
       </div>
 
       {/* Editor */}
-      <div className="flex-grow overflow-auto bg-gray-100">
+      <div className="flex-grow bg-gray-100 overflow-y-auto">
         <ScreenplayEditor
           ref={editorRef} // ✅ 4. Attach the ref here
           screenplayJson={screenplayJson}
           ActiveComponent={activeComponent}
           setActiveComponent={setActiveComponent}
+          componentRef={compontentRef}
+          styles={styles}
         />
       </div>
     </div>
