@@ -7,8 +7,7 @@ import os
 import sys
 
 #getting base from scriptsModel
-sys.path.append(os.getcwd())
-from scripts.models.ScriptModel import Base
+Base = declarative_base()
 
 # ------------------------
 # Projects Table

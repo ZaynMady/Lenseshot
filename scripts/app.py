@@ -10,8 +10,8 @@ def create_app():
 
 
     #loading blueprints
-    from scripts.routes.userapi import userapi_bp
-    from scripts.routes.projects import projects_bp
+    from routes.userapi import userapi_bp
+    from routes.projects import projects_bp
     app.register_blueprint(userapi_bp) #blueprint that interacts with the frontend
     app.register_blueprint(projects_bp) #blueprint that manages project related tasks
 
