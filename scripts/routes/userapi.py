@@ -91,11 +91,11 @@ def open_screenplay():
 
     try:
         # Remove the .lss extension from the incoming name to match the database title
-        title_without_extension = screenplay_name.replace(".lss", "")
+        
 
         # Convert string to UUID object
         screenplay = Script(StorageClass=Storage, DatabaseClass=db)
-        screenplay.open(title=title_without_extension, user=current_user)
+        screenplay.open(title=screenplay_name, user=current_user)
     except Exception as e:
         db.rollback()
         return jsonify({'msg': f'Backend connection failed: {str(e)}'}), 502
@@ -121,13 +121,12 @@ def save_screenplay():
             return jsonify({'msg': 'Missing required fields', "response": request.json}), 400
 
         try: 
-            title_without_extension = screenplay_name.replace(".lss", "")
            
 
             # Initialize the script object
             screenplay = Script(StorageClass=Storage, DatabaseClass=db)
             # Open the script to load its current state
-            screenplay.save(title=title_without_extension, user=current_user, new_content=screenplay_Json)
+            screenplay.save(title=screenplay_name, user=current_user, new_content=screenplay_Json)
         except Exception as e:
             db.rollback()
             return jsonify({'msg': 'Failed to save screenplay', 'error': str(e)}), 500
@@ -153,10 +152,10 @@ def delete_screenplay():
 
         #sending a request to the backend to delete the screenplay
         try: 
-            title_without_extension = screenplay_name.replace(".lss", "")
+            
 
             screenplay = Script(StorageClass=Storage, DatabaseClass=db)
-            screenplay.delete(title=title_without_extension, user=current_user)
+            screenplay.delete(title=screenplay_name, user=current_user)
             return jsonify({"msg": "Screenplay Deleted Successfully"}), 200
         except Exception as e:
             db.rollback()
