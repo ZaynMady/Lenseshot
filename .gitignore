@@ -23,5 +23,7 @@ backend/users/
 
 startapp.sh
 
-
-
+alembic/
+alembic.ini
+pack.py
+full_project_debug_package.txt

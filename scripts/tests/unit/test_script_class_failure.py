@@ -3,23 +3,11 @@ from unittest.mock import MagicMock
 from scripts.common.Script import Script
 import uuid
 
-# A valid XML template for use in tests
-mock_template = """<?xml version="1.0" encoding="UTF-8"?>
-<template id="test_template">
-  <style>.page { color: black; }</style>
-  <components><sceneHeading class="scene-heading"/></components>
-  <content><sceneHeading>INT. ROOM - DAY</sceneHeading></content>
-</template>
-"""
-
-def test_init_xml_with_invalid_xml():
-    """
-    Tests that __init_xml raises a ValueError with malformed XML.
-    """
-    script = Script(MagicMock(), MagicMock())
-    invalid_xml = "<root><unclosed-tag></root>"
-    with pytest.raises(ValueError, match="Invalid XML format"):
-        script._Script__init_xml(invalid_xml)
+# A mock JSON content for use in tests
+mock_content = [
+    {"class": "scene-heading", "content": "INT. ROOM - DAY"},
+    {"class": "action", "content": "A test is run."}
+]
 
 def test_create_script_db_failure():
     """
@@ -31,26 +19,25 @@ def test_create_script_db_failure():
 
     script = Script(mock_storage, mock_db)
     with pytest.raises(Exception, match="DB connection failed"):
-        script.create(mock_template, "Test Title", uuid.uuid4(), uuid.uuid4())
+        script.create(mock_content, "Test Title", uuid.uuid4(), uuid.uuid4(), "test_template")
     
     mock_storage.put.assert_not_called()
 
-def test_create_script_storage_failure_and_rollback():
+def test_create_script_storage_failure_rolls_back_db():
     """
-    Tests that create raises an exception if storage fails, and that the DB entry is rolled back.
+    Tests that a storage failure during create causes a database rollback.
     """
     mock_storage = MagicMock()
     mock_db = MagicMock()
     mock_script_obj = MagicMock()
-
     mock_db.add_script.return_value = mock_script_obj
     mock_storage.put.side_effect = Exception("S3 bucket not found")
 
     script = Script(mock_storage, mock_db)
     with pytest.raises(Exception, match="S3 bucket not found"):
-        script.create(mock_template, "Test Title", uuid.uuid4(), uuid.uuid4())
+        script.create(mock_content, "Test Title", uuid.uuid4(), uuid.uuid4(), "test_template")
 
-    # Assert that the rollback function was called
+    # Assert that the rollback function (delete_script) was called
     mock_db.delete_script.assert_called_once_with(mock_script_obj)
 
 def test_open_script_not_found_in_db():
@@ -62,11 +49,11 @@ def test_open_script_not_found_in_db():
 
     script = Script(MagicMock(), mock_db)
     with pytest.raises(FileNotFoundError, match="Script does not exist in database."):
-        script.open("Nonexistent Script", uuid.uuid4(), uuid.uuid4())
+        script.open("Nonexistent Script", uuid.uuid4())
 
 def test_open_script_storage_get_failure():
     """
-    Tests that open raises an exception if fetching from storage fails.
+    Tests that open raises an exception if the storage get call fails.
     """
     mock_storage = MagicMock()
     mock_db = MagicMock()
@@ -76,7 +63,7 @@ def test_open_script_storage_get_failure():
 
     script = Script(mock_storage, mock_db)
     with pytest.raises(Exception, match="Cloudflare R2 is down"):
-        script.open("Test Script", uuid.uuid4(), uuid.uuid4())
+        script.open("Test Script", uuid.uuid4())
 
 def test_save_script_not_found_in_db():
     """
@@ -87,7 +74,7 @@ def test_save_script_not_found_in_db():
 
     script = Script(MagicMock(), mock_db)
     with pytest.raises(FileNotFoundError, match="Script does not exist in database."):
-        script.save("Nonexistent Script", uuid.uuid4(), uuid.uuid4(), [])
+        script.save("Nonexistent Script", uuid.uuid4(), [])
 
 def test_save_script_storage_put_failure():
     """
@@ -101,36 +88,13 @@ def test_save_script_storage_put_failure():
 
     # Mock successful open
     mock_db.get_script.return_value = True
-    mock_storage.get.return_value = {'Body': MagicMock(read=lambda: mock_template.encode('utf-8'))}
     # Mock failed save
     mock_storage.put.side_effect = Exception("Failed to write to bucket")
 
     script = Script(mock_storage, mock_db)
-    script.open(title, userid, projectid) # Load initial state
 
     with pytest.raises(Exception, match="Failed to write to bucket"):
-        script.save(title, userid, projectid, [{'class': 'scene-heading', 'content': 'NEW CONTENT'}])
-
-def test_save_script_invalid_json_content():
-    """
-    Tests that save raises a ValueError if the new content has a class not in the tag_map.
-    """
-    mock_storage = MagicMock()
-    mock_db = MagicMock()
-    userid = uuid.uuid4()
-    projectid = uuid.uuid4()
-    title = "My Script"
-
-    mock_db.get_script.return_value = True
-    mock_storage.get.return_value = {'Body': MagicMock(read=lambda: mock_template.encode('utf-8'))}
-
-    script = Script(mock_storage, mock_db)
-    script.open(title, userid, projectid)
-
-    invalid_content = [{'class': 'non-existent-class', 'content': 'This will fail'}]
-
-    with pytest.raises(ValueError, match="No tag found for class: non-existent-class"):
-        script.save(title, userid, projectid, invalid_content)
+        script.save(title, userid, [{'class': 'scene-heading', 'content': 'NEW CONTENT'}])
 
 def test_delete_script_not_found_in_db():
     """
@@ -141,43 +105,53 @@ def test_delete_script_not_found_in_db():
 
     script = Script(MagicMock(), mock_db)
     with pytest.raises(FileNotFoundError, match="Script does not exist in database."):
-        script.delete("Nonexistent Script", uuid.uuid4(), uuid.uuid4())
+        script.delete("Nonexistent Script", uuid.uuid4())
+
+import pytest
+from unittest.mock import MagicMock
+import uuid
+from scripts.common.Script import Script 
+
+# A valid XML template for use in tests if needed (can be empty string for this test)
+mock_template = ""
 
 def test_delete_script_storage_failure():
     """
-    Tests that delete raises an exception if the storage call fails.
-    The database entry should NOT be deleted in this case.
+    Tests that delete raises an exception if the storage delete call fails.
     """
+    # Arrange
     mock_storage = MagicMock()
     mock_db = MagicMock()
+    userid = "test_user_id"
+    projectid = "test_project_id"
+    script_title = "Script1"
 
-    mock_db.get_script.return_value = True
-    mock_storage.delete.side_effect = Exception("Storage delete failed")
-
-    script = Script(mock_storage, mock_db)
-    with pytest.raises(Exception, match="Storage delete failed"):
-        script.delete("Test Script", uuid.uuid4(), uuid.uuid4())
-
-    mock_db.delete_script.assert_not_called()
-
-def test_delete_project_storage_failure():
-    """
-    Tests that delete_project raises an exception if a storage deletion fails.
-    """
-    mock_storage = MagicMock()
-    mock_db = MagicMock()
-    userid = uuid.uuid4()
-    projectid = uuid.uuid4()
-
-    script1 = MagicMock(title="Script1")
-    mock_db.get_list_of_scripts.return_value = [script1]
-    mock_storage.delete.side_effect = Exception("Partial storage failure")
+    # Setup the mocks
+    # 1. DB must find the script first. We return True so 'if not script_exists' is False.
+    #    If this returns None (default), Script.delete raises FileNotFoundError.
+    mock_db.get_script.return_value = True 
+    
+    # 2. Storage is set to fail
+    error_message = "Cloudflare R2 is down"
+    mock_storage.delete.side_effect = Exception(error_message)
 
     script = Script(mock_storage, mock_db)
-    with pytest.raises(Exception, match="Partial storage failure"):
-        script.delete_project(userid, projectid)
 
-    # Ensure it attempted the deletion
-    mock_storage.delete.assert_called_once_with(f"users/{userid}/projects/{projectid}/scripts/Script1.lss")
-    # Ensure the DB was not touched because storage failed
+    # Act & Assert
+    # Verify that the specific exception propagates up
+    with pytest.raises(Exception) as excinfo:
+        script.delete(script_title, userid)
+    
+    # Verify the message matches our storage error
+    assert error_message in str(excinfo.value)
+    
+    # Assert side effects
+    # 1. Verify storage delete was attempted with the correct path
+    expected_path = f"users/{userid}/scripts/{script_title}.lss"
+    mock_storage.delete.assert_called_once_with(expected_path)
+
+    # 2. Ensure the DB delete was NOT called because storage failed first
     mock_db.delete_script.assert_not_called()
+
+# Include other tests from the file if you wiped them out, 
+# ensuring they also have correct mocks setup.)

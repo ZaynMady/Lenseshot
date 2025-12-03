@@ -18,3 +18,7 @@ class Database:
     @property
     def engine(self):
         return self.__engine
+
+    def rollback(self):
+        self._session.rollback()
+
