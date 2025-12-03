@@ -9,23 +9,23 @@ class ScriptDB(Database):
     def __init__(self, database_url):
         super().__init__(database_url)
 
-    def add_script(self, title, owner_id, project_id):
+    def add_script(self, title, owner_id, project_id, template):
         new_script = ScriptsModel(
             id=uuid.uuid4(),
             title=title,
             owner_id=owner_id,
-            project_id=project_id
+            project_id=project_id, 
+            templates=template
         )
         self._session.add(new_script)
         self._session.commit()
         #optional return the created script
         return new_script
     
-    def get_script(self, script_title, owner_id, project_id):
+    def get_script(self, script_title, owner_id):
         return self._session.query(ScriptsModel).filter_by(
             title=script_title,
             owner_id=owner_id,
-            project_id=project_id
         ).first()
     
     def update_script_title(self, script, new_title):
@@ -36,8 +36,7 @@ class ScriptDB(Database):
         self._session.delete(script)
         self._session.commit()
         
-    def get_list_of_scripts(self, owner_id, project_id):
+    def get_list_of_scripts(self, owner_id):
         return self._session.query(ScriptsModel).filter_by(
             owner_id=owner_id,
-            project_id=project_id
         ).all()

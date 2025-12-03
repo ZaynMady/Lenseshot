@@ -11,9 +11,9 @@ class ScriptsModel(Base):
     id = Column(UUID(as_uuid=True), primary_key=True)
     title = Column(String, nullable=False)
     owner_id = Column(UUID(as_uuid=True), nullable=False)
-    project_id = Column(UUID(as_uuid=True), nullable=False)
+    project_id = Column(UUID(as_uuid=True), nullable=True)
     scenes = relationship("ScenesModel", back_populates="script", cascade="all, delete-orphan")
-
+    templates = Column(String, nullable=False)
 
 
 

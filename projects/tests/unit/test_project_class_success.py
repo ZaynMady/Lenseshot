@@ -33,7 +33,7 @@ def test_create_project_success(project_handler):
     mock_db.list_projects.assert_called_once_with(owner_id)
     mock_db.add_project.assert_called_once_with(owner_id, project_name)
     
-    expected_key = f"{owner_id}/projects/{new_project_id}/metadata.json"
+    expected_key = f"users/{owner_id}/projects/{new_project_id}/metadata.json"
     mock_storage.put.assert_called_once_with(expected_key, json.dumps(metadata))
 
 def test_get_metadata_success(project_handler):
@@ -58,7 +58,7 @@ def test_get_metadata_success(project_handler):
     # Assertions
     assert retrieved_metadata == metadata
     mock_db.get_project.assert_called_once_with(project_id, user_id)
-    expected_key = f"{user_id}/projects/{project_id}/metadata.json"
+    expected_key = f"users/{user_id}/projects/{project_id}/metadata.json"
     mock_storage.get.assert_called_once_with(expected_key)
 
 def test_update_metadata_success(project_handler):
@@ -79,7 +79,7 @@ def test_update_metadata_success(project_handler):
     # Assertions
     assert result is True
     mock_db.get_project.assert_called_once_with(project_id, user_id)
-    expected_key = f"{user_id}/projects/{project_id}/metadata.json"
+    expected_key = f"users/{user_id}/projects/{project_id}/metadata.json"
     mock_storage.put.assert_called_once_with(expected_key, json.dumps(new_metadata))
 
 def test_list_projects_success(project_handler):
@@ -119,8 +119,8 @@ def test_delete_project_success(project_handler):
 
     # Mock Storage calls
     objects_to_delete = [
-        {'Key': f"{user_id}/projects/{project_id}/metadata.json"},
-        {'Key': f"{user_id}/projects/{project_id}/scripts/script1.lss"}
+        {'Key': f"users/{user_id}/projects/{project_id}/metadata.json"},
+        {'Key': f"users/{user_id}/projects/{project_id}/scripts/script1.lss"}
     ]
     mock_storage.list_objects.return_value = objects_to_delete
 
@@ -132,7 +132,7 @@ def test_delete_project_success(project_handler):
     mock_db.get_project.assert_called_once_with(project_id, user_id)
     mock_db.delete_project.assert_called_once_with(project_id, user_id)
 
-    prefix = f"{user_id}/projects/{project_id}/"
+    prefix = f"users/{user_id}/projects/{project_id}/"
     mock_storage.list_objects.assert_called_once_with(prefix)
     
     expected_keys_to_delete = [obj['Key'] for obj in objects_to_delete]

@@ -3,8 +3,12 @@ from sqlalchemy.dialects.postgresql import UUID
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, String, DateTime, Integer, UniqueConstraint, func
 from sqlalchemy.ext.declarative import declarative_base
+import os
+import sys
 
-Base = declarative_base()
+#getting base from scriptsModel
+sys.path.append(os.getcwd())
+from scripts.models.ScriptModel import Base
 
 # ------------------------
 # Projects Table

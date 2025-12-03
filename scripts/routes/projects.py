@@ -24,9 +24,7 @@ storage = Cloudflare(CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE
 #initializing a script handler class
 from common.Script import Script
 script = Script(storage, db)
-
-#route to delete a project and all associated scripts
-@projects_bp.route('screenplay/delete_project', methods=['POST', 'OPTIONS'])
+@projects_bp.route('/screenplay/delete_project', methods=['POST', 'OPTIONS'])
 def delete_project():
     if request.method == "OPTIONS":
         return "", 200
