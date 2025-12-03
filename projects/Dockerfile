@@ -23,4 +23,4 @@ COPY ./projects .
 # Expose the port the app runs on.
 EXPOSE 7000
 
-# The command to run the application will be provided by docker-compose.yml
+RUN flask run --host=0.0.0.0 --port=7000
