@@ -23,4 +23,5 @@ COPY ./projects .
 # Expose the port the app runs on.
 EXPOSE 7000
 
-RUN flask run --host=0.0.0.0 --port=7000
+# This tells Docker "Wait until deployed to start the server"
+CMD ["flask", "run", "--host=0.0.0.0", "--port=7000"]

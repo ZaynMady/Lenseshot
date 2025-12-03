@@ -24,4 +24,5 @@ COPY ./scripts .
 EXPOSE 8000
 
 # The command to run the application will be provided by docker-compose.yml
-RUN flask run --host=0.0.0.0 --port=7000
+# This tells Docker "Wait until deployed to start the server"
+CMD ["flask", "run", "--host=0.0.0.0", "--port=7000"]
