@@ -45,7 +45,7 @@ class Script():
 
     def open(self, title, user):
         #check if script exists in database
-        script_exists = self.__database.get_script(title, user)
+        script_exists = self.__database.get_script(title + ".lss", user)
         if not script_exists:
             raise FileNotFoundError("Script does not exist in database.")
         #fetching from storage
@@ -66,7 +66,7 @@ class Script():
         #saves/updates the file content in storage and database if necessary
 
         #make sure script exists in database
-        script_exists = self.__database.get_script(title, user)
+        script_exists = self.__database.get_script(title + ".lss", user)
         if not script_exists:
             raise FileNotFoundError("Script does not exist in database.")
         
@@ -87,7 +87,7 @@ class Script():
         #deletes script from both storage and database
 
         #make sure script exists in database
-        script_exists = self.__database.get_script(title, user)
+        script_exists = self.__database.get_script(title + ".lss", user)
         if not script_exists:
             raise FileNotFoundError("Script does not exist in database.")
         
