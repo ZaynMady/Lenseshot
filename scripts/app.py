@@ -6,10 +6,7 @@ def create_app():
 
     app = Flask(__name__)
    
-    #Enable CORS for the app
-    CORS(app, 
-    supports_credentials=True,
-    resources={r"/api/*": {"origins": ["http://localhost:5173"]}}) 
+    CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "*"}})
 
 
     #loading blueprints

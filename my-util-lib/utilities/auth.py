@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 import os
 
 
-
+load_dotenv()
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
 
 
 #define get_current_user_id
@@ -41,7 +42,7 @@ def supabase_jwt_required(f):
         try:
             # Decode and verify the token
             payload = jwt.decode(token,
-                                 "94IWek04/8VSvcAG+x619owuOAUSx3MFaqAVUme5DwhMSLaLb0rj7pt/vKJtX78yMUmFdai5mzx76y+8zV51kQ==", 
+                                 SUPABASE_JWT_SECRET, 
                                  algorithms=["HS256"], 
                                  options={"verify_aud" : False})
             # store user info globally (similar to get_jwt_identity)
