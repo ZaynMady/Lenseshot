@@ -1,0 +1,59 @@
+services:
+  # ---------------------------------------------------
+  # 1. SCRIPTS SERVICE (Deploys first)
+  # ---------------------------------------------------
+  - type: web
+    name: scripts-api
+    runtime: docker
+    region: oregon  # Choose a region close to you
+    plan: free      # Explicitly set to free tier
+    
+    # Critical: Sets build context to root so it can see "my-util-lib"
+    rootDir: .
+    dockerfilePath: ./scripts/Dockerfile
+    
+    # Environment Variables
+    envVars:
+      - key: DATABASE_URL
+        sync: false  # You will enter this value in the Dashboard securely
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: CLOUDFLARE_BUCKET_NAME
+        sync: false
+      - key: CLOUDFLARE_ACCESS_KEY_ID
+        sync: false
+      - key: CLOUDFLARE_SECRET_ACCESS_KEY
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false
+
+  # ---------------------------------------------------
+  # 2. PROJECTS SERVICE (Depends on Scripts)
+  # ---------------------------------------------------
+  - type: web
+    name: projects-api
+    runtime: docker
+    region: oregon
+    plan: free
+    
+    rootDir: .
+    dockerfilePath: ./projects/Dockerfile
+    
+    # Environment Variables
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      # This connects the two services! 
+      # On Render, service names become hostnames.
+      - key: SCREENPLAY_API_URL
+        value: http://scripts-api:8000
+      - key: CLOUDFLARE_BUCKET_NAME
+        sync: false
+      - key: CLOUDFLARE_ACCESS_KEY_ID
+        sync: false
+      - key: CLOUDFLARE_SECRET_ACCESS_KEY
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false
