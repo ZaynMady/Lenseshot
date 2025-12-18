@@ -2,6 +2,7 @@ from utilities.database import Database
 from .userModel import UserModel, Contacts
 from datetime import datetime, timezone
 import uuid
+from sqlalchemy.exc import IntegrityError
 
 class UserDB(Database):
     def __init__(self, database_url=None, with_engine=None):
@@ -25,12 +26,17 @@ class UserDB(Database):
                 rate=rate
             )
             self._session.add(new_user)
-        except Exception as e:
+            # MUST commit (or flush) to trigger the database constraint check
+            self._session.commit() 
+            return new_user
+
+        except IntegrityError as ie:
             self._session.rollback()
-            raise e
-        
-        self._session.commit()
-        return new_user
+            # Note: Using .orig is correct for getting the database-specific error
+            if 'UNIQUE constraint failed' in str(ie.orig):
+                raise Exception("User with this username or email already exists.")
+            else:
+                raise ie
     
     def get_user(self, username):
         return self._session.query(UserModel).filter_by(username=username).first()

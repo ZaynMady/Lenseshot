@@ -199,3 +199,32 @@ def test_delete_contact(user_db, data):
     contacts = user_db.get_contacts(user1.id)
 
     assert len(contacts) == 0
+
+# Failure tests
+
+@pytest.mark.parametrize("data", get_test_data())
+def test_add_duplicate_user(user_db, data):
+    user_db.add_user(
+        username=data['username'],
+        email=data['email'],
+        auth_id=data['Auth'],
+        role=data['role'],
+        profile_picture=data['profile_picture'],
+        bio=data['bio'],
+        rate=data['rate']
+    )
+
+    # Use 'as exc_info' to capture the exception context
+    with pytest.raises(Exception) as exc_info:
+        user_db.add_user(
+            username=data['username'],
+            email=data['email'],
+            auth_id=data['Auth'],
+            role=data['role'],
+            profile_picture=data['profile_picture'],
+            bio=data['bio'],
+            rate=data['rate']
+        )
+
+    # Access the exception message via exc_info.value
+    assert "User with this username or email already exists." in str(exc_info.value)
