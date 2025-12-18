@@ -5,9 +5,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from abc import ABC, abstractmethod
 
 class Database:
-    def __init__(self, database_url):
+    def __init__(self, database_url=None, with_engine=None):
         self.__db = SQLAlchemy()
-        self.__engine = create_engine(database_url, pool_pre_ping=True)
+        if not with_engine:
+            self.__engine = create_engine(database_url, pool_pre_ping=True)
+        else:
+            self.__engine = with_engine
         self._Session = sessionmaker(bind=self.__engine)
         self._session = self._Session()
     
